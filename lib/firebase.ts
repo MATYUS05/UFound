@@ -38,7 +38,9 @@ export async function uploadImageToCloudinary(localUri: string): Promise<string>
   formData.append('upload_preset', uploadPreset!);
 
   const res = await fetch(url, { method: 'POST', body: formData });
-  if (!res.ok) throw new Error('Upload gambar gagal');
   const data = await res.json();
+  if (!res.ok || !data.secure_url) {
+    throw new Error(data?.error?.message ?? 'Upload gambar gagal');
+  }
   return data.secure_url as string;
 }

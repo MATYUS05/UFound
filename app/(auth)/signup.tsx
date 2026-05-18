@@ -24,8 +24,6 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [adminCode, setAdminCode] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
@@ -41,11 +39,6 @@ export default function SignupScreen() {
       Alert.alert('Error', 'Password minimal 6 karakter');
       return;
     }
-    if (isAdmin && adminCode !== (process.env.EXPO_PUBLIC_ADMIN_CODE ?? 'ADMIN2024')) {
-      Alert.alert('Error', 'Kode admin salah');
-      return;
-    }
-
     setLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -54,7 +47,7 @@ export default function SignupScreen() {
         name: name.trim(),
         nim: nim.trim(),
         email: email.trim().toLowerCase(),
-        role: isAdmin ? 'admin' : 'user',
+        role: 'user',
         createdAt: serverTimestamp(),
       });
       router.replace('/');
@@ -129,29 +122,6 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.adminToggle}
-            onPress={() => setIsAdmin(!isAdmin)}>
-            <View style={[styles.checkbox, isAdmin && styles.checkboxActive]}>
-              {isAdmin && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.adminToggleText}>Daftar sebagai Admin</Text>
-          </TouchableOpacity>
-
-          {isAdmin && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Kode Admin</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Masukkan kode admin"
-                placeholderTextColor={APP_COLORS.textLight}
-                value={adminCode}
-                onChangeText={setAdminCode}
-                secureTextEntry
-              />
-            </View>
-          )}
-
-          <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleSignup}
             disabled={loading}>
@@ -214,20 +184,6 @@ const styles = StyleSheet.create({
     color: APP_COLORS.text,
     backgroundColor: APP_COLORS.background,
   },
-  adminToggle: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: APP_COLORS.border,
-    marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxActive: { backgroundColor: APP_COLORS.primary, borderColor: APP_COLORS.primary },
-  checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  adminToggleText: { fontSize: 14, color: APP_COLORS.text },
   button: {
     backgroundColor: APP_COLORS.primary,
     borderRadius: 12,

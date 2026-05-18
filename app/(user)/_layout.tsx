@@ -1,10 +1,14 @@
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClaimNotification } from '@/hooks/useClaimNotification';
+import ClaimNotificationBanner from '@/components/ClaimNotificationBanner';
 
 export default function UserLayout() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const { notification, dismissNotification } = useClaimNotification();
 
   useEffect(() => {
     if (loading) return;
@@ -13,12 +17,15 @@ export default function UserLayout() {
   }, [user, profile, loading]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="item/[id]"
-        options={{ headerShown: true, title: 'Detail Barang', headerBackTitle: 'Kembali' }}
-      />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="item/[id]"
+          options={{ headerShown: true, title: 'Detail Barang', headerBackTitle: 'Kembali' }}
+        />
+      </Stack>
+      <ClaimNotificationBanner notification={notification} onDismiss={dismissNotification} />
+    </View>
   );
 }

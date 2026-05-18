@@ -1,5 +1,4 @@
-import { View, TouchableOpacity, Text, StyleSheet, Linking, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { View, TouchableOpacity, Text, StyleSheet, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { APP_COLORS } from '@/lib/types';
 import { UMN_CENTER } from '@/lib/umnLocations';
@@ -19,37 +18,30 @@ export default function OSMMap({
 }: OSMMapProps) {
   const delta = 0.004;
   const bbox = `${longitude - delta},${latitude - delta},${longitude + delta},${latitude + delta}`;
-  const mapUrl =
+  const embedUrl =
     `https://www.openstreetmap.org/export/embed.html` +
     `?bbox=${bbox}&layer=mapnik&marker=${latitude},${longitude}`;
 
   const openInMaps = () => {
-    const label = encodeURIComponent(title);
-    const url =
-      Platform.OS === 'ios'
-        ? `maps://q=${latitude},${longitude}`
-        : `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`;
-    Linking.openURL(url).catch(() => {
-      Linking.openURL(`https://maps.google.com/maps?q=${latitude},${longitude}`);
-    });
+    Linking.openURL(`https://maps.google.com/maps?q=${latitude},${longitude}`);
   };
+
+  // On web, use a native <iframe> — safe in Expo Web / React Native Web
+  const IFrame = 'iframe' as any;
 
   return (
     <View>
       <View style={[styles.mapContainer, { height }]}>
-        <WebView
-          source={{ uri: mapUrl }}
-          style={styles.webview}
-          scrollEnabled={false}
-          javaScriptEnabled
-          domStorageEnabled
-          startInLoadingState
-          originWhitelist={['*']}
+        <IFrame
+          src={embedUrl}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title={title}
+          loading="lazy"
         />
       </View>
       <TouchableOpacity style={styles.openBtn} onPress={openInMaps}>
         <Ionicons name="map-outline" size={14} color={APP_COLORS.primary} />
-        <Text style={styles.openBtnText}> Buka Navigasi di Maps</Text>
+        <Text style={styles.openBtnText}> Buka di Google Maps</Text>
       </TouchableOpacity>
     </View>
   );
@@ -62,7 +54,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: APP_COLORS.border,
   },
-  webview: { flex: 1 },
   openBtn: {
     marginTop: 8,
     paddingVertical: 10,

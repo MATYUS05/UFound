@@ -21,6 +21,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/lib/firebase';
 import { Item, APP_COLORS, CATEGORIES } from '@/lib/types';
 import { formatFull, format } from '@/lib/dateUtils';
@@ -101,7 +102,7 @@ export default function AdminScanScreen() {
     setScanned(false);
   };
 
-  const catEmoji = (cat: string) => CATEGORIES.find((c) => c.id === cat)?.emoji ?? '📦';
+  const catIcon = (cat: string) => (CATEGORIES.find((c) => c.id === cat)?.icon ?? 'cube-outline') as any;
 
   return (
     <View style={styles.container}>
@@ -133,7 +134,7 @@ export default function AdminScanScreen() {
             </CameraView>
             {scanned && (
               <TouchableOpacity style={styles.rescanBtn} onPress={() => { setScanned(false); setScannedItem(null); }}>
-                <Text style={styles.rescanBtnText}>🔄 Scan Lagi</Text>
+                <Text style={styles.rescanBtnText}>Scan Lagi</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -170,7 +171,7 @@ export default function AdminScanScreen() {
             contentContainerStyle={{ paddingBottom: 20 }}
             renderItem={({ item }) => (
               <View style={styles.historyCard}>
-                <Text style={styles.historyEmoji}>{catEmoji(item.category)}</Text>
+                <Ionicons name={catIcon(item.category)} size={28} color={APP_COLORS.primary} style={{ width: 36 }} />
                 <View style={styles.historyInfo}>
                   <Text style={styles.historyTitle} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.historyMeta}>
@@ -197,7 +198,7 @@ export default function AdminScanScreen() {
             {scannedItem && (
               <>
                 <View style={styles.modalItem}>
-                  <Text style={styles.modalItemEmoji}>{catEmoji(scannedItem.category)}</Text>
+                  <Ionicons name={catIcon(scannedItem.category)} size={32} color={APP_COLORS.primary} />
                   <View>
                     <Text style={styles.modalItemName}>{scannedItem.title}</Text>
                     <Text style={styles.modalItemCategory}>{scannedItem.category}</Text>
@@ -223,7 +224,7 @@ export default function AdminScanScreen() {
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity style={styles.rejectBtn} onPress={handleReject}>
-                    <Text style={styles.rejectBtnText}>❌ Tidak</Text>
+                    <Text style={styles.rejectBtnText}>Tidak</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.confirmBtn, confirmLoading && { opacity: 0.7 }]}
@@ -232,7 +233,7 @@ export default function AdminScanScreen() {
                     {confirmLoading ? (
                       <ActivityIndicator color="#fff" size="small" />
                     ) : (
-                      <Text style={styles.confirmBtnText}>✅ Ya, Konfirmasi</Text>
+                      <Text style={styles.confirmBtnText}>Ya, Konfirmasi</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -280,7 +281,6 @@ const styles = StyleSheet.create({
   emptyHistory: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 30 },
   emptyHistoryText: { fontSize: 14, color: APP_COLORS.textMuted },
   historyCard: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: APP_COLORS.border, gap: 12 },
-  historyEmoji: { fontSize: 28, width: 36 },
   historyInfo: { flex: 1 },
   historyTitle: { fontSize: 14, fontWeight: '600', color: APP_COLORS.text },
   historyMeta: { fontSize: 12, color: APP_COLORS.textMuted, marginTop: 2 },
@@ -292,7 +292,6 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: APP_COLORS.text, marginBottom: 20, textAlign: 'center' },
   modalItem: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: APP_COLORS.primaryLight, borderRadius: 14, padding: 14, marginBottom: 16 },
-  modalItemEmoji: { fontSize: 32 },
   modalItemName: { fontSize: 16, fontWeight: '700', color: APP_COLORS.text },
   modalItemCategory: { fontSize: 13, color: APP_COLORS.textMuted },
   modalSection: { marginBottom: 16 },

@@ -25,6 +25,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import OSMMap from '@/components/OSMMap';
 import QRCode from 'react-native-qrcode-svg';
 import { db } from '@/lib/firebase';
@@ -143,7 +144,7 @@ export default function ItemDetailScreen() {
   }
 
   const isMyClaimedItem = item.status === 'claimed' && item.claimedBy?.uid === profile?.uid;
-  const catEmoji = CATEGORIES.find((c) => c.id === item.category)?.emoji ?? '📦';
+  const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -172,7 +173,7 @@ export default function ItemDetailScreen() {
           </View>
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderEmoji}>{catEmoji}</Text>
+            <Ionicons name={catIcon} size={64} color={APP_COLORS.primary} />
           </View>
         )}
 
@@ -181,7 +182,7 @@ export default function ItemDetailScreen() {
           <View style={styles.titleRow}>
             <Text style={styles.title}>{item.title}</Text>
             <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-              <Text style={styles.shareIcon}>↑</Text>
+              <Ionicons name="share-outline" size={20} color={APP_COLORS.primary} />
             </TouchableOpacity>
           </View>
           <View style={styles.metaRow}>
@@ -190,7 +191,10 @@ export default function ItemDetailScreen() {
                 {statusLabel(item.status)}
               </Text>
             </View>
-            <Text style={styles.categoryText}>{catEmoji} {item.category}</Text>
+            <View style={styles.categoryRow}>
+              <Ionicons name={catIcon} size={13} color={APP_COLORS.textMuted} />
+              <Text style={styles.categoryText}> {item.category}</Text>
+            </View>
             <Text style={styles.dateText}>{format(item.createdAt)}</Text>
           </View>
 
@@ -230,7 +234,10 @@ export default function ItemDetailScreen() {
               </View>
               {item.status === 'completed' && item.completedAt && (
                 <View style={styles.completedBanner}>
-                  <Text style={styles.completedText}>✅ Barang telah diambil pada {formatFull(item.completedAt)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="checkmark-circle" size={16} color={APP_COLORS.success} />
+                <Text style={styles.completedText}>Barang telah diambil pada {formatFull(item.completedAt)}</Text>
+              </View>
                 </View>
               )}
             </View>
@@ -240,7 +247,10 @@ export default function ItemDetailScreen() {
           {item.location?.latitude && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Lokasi Ditemukan</Text>
-              <Text style={styles.locationAddress}>📍 {item.location.address}</Text>
+              <View style={styles.locationAddressRow}>
+                <Ionicons name="location-outline" size={13} color={APP_COLORS.textMuted} />
+                <Text style={styles.locationAddress}>{item.location.address}</Text>
+              </View>
               <OSMMap
                 latitude={item.location.latitude}
                 longitude={item.location.longitude}
@@ -273,7 +283,7 @@ export default function ItemDetailScreen() {
           {/* COMPLETED SUCCESS — for the user who claimed & picked up */}
           {item.status === 'completed' && item.claimedBy?.uid === profile?.uid && (
             <View style={styles.successBox}>
-              <Text style={styles.successEmoji}>🎉</Text>
+              <Ionicons name="trophy-outline" size={36} color={APP_COLORS.success} style={{ marginBottom: 8 }} />
               <Text style={styles.successTitle}>Pengambilan Berhasil!</Text>
               <Text style={styles.successSub}>Barang kamu sudah berhasil diambil. Terima kasih telah menggunakan UFound!</Text>
             </View>
@@ -282,7 +292,10 @@ export default function ItemDetailScreen() {
           {/* CLAIMED BY OTHERS — when someone else already claimed it */}
           {item.status === 'claimed' && item.claimedBy?.uid !== profile?.uid && (
             <View style={styles.claimedOtherBox}>
-              <Text style={styles.claimedOtherText}>🔖 Barang ini sudah diklaim oleh orang lain</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="bookmark-outline" size={16} color={APP_COLORS.warning} />
+                <Text style={styles.claimedOtherText}>Barang ini sudah diklaim oleh orang lain</Text>
+              </View>
             </View>
           )}
 
@@ -343,7 +356,7 @@ export default function ItemDetailScreen() {
           {loadingComment ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.sendBtnText}>➤</Text>
+            <Ionicons name="send" size={18} color="#fff" />
           )}
         </TouchableOpacity>
       </View>
@@ -352,10 +365,14 @@ export default function ItemDetailScreen() {
 }
 
 function statusLabel(s: string) {
-  return s === 'available' ? 'Tersedia' : s === 'claimed' ? 'Diklaim' : 'Selesai';
+  return s === 'pending' ? 'Menunggu Persetujuan' :
+    s === 'available' ? 'Tersedia' :
+    s === 'claimed' ? 'Diklaim' : 'Selesai';
 }
 function statusColor(s: string) {
-  return s === 'available' ? APP_COLORS.success : s === 'claimed' ? APP_COLORS.warning : APP_COLORS.textLight;
+  return s === 'pending' ? APP_COLORS.warning :
+    s === 'available' ? APP_COLORS.success :
+    s === 'claimed' ? APP_COLORS.warning : APP_COLORS.textLight;
 }
 
 const styles = StyleSheet.create({
@@ -363,7 +380,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   mainImage: { width: '100%', height: 260 },
   imagePlaceholder: { height: 180, backgroundColor: APP_COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  imagePlaceholderEmoji: { fontSize: 64 },
   thumbnailRow: { backgroundColor: '#000', paddingVertical: 8, paddingHorizontal: 12 },
   thumbnail: { width: 60, height: 60, borderRadius: 8, marginRight: 8, opacity: 0.6 },
   thumbnailActive: { opacity: 1, borderWidth: 2, borderColor: APP_COLORS.primary },
@@ -378,10 +394,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shareIcon: { fontSize: 18, color: APP_COLORS.primary, fontWeight: '700' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 12, fontWeight: '700' },
+  categoryRow: { flexDirection: 'row', alignItems: 'center' },
   categoryText: { fontSize: 13, color: APP_COLORS.textMuted },
   dateText: { fontSize: 12, color: APP_COLORS.textLight },
   description: { fontSize: 14, color: APP_COLORS.text, lineHeight: 22, marginBottom: 20 },
@@ -416,7 +432,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   completedText: { fontSize: 13, color: APP_COLORS.success, fontWeight: '600' },
-  locationAddress: { fontSize: 13, color: APP_COLORS.textMuted, marginBottom: 12 },
+  locationAddressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
+  locationAddress: { fontSize: 13, color: APP_COLORS.textMuted, flex: 1 },
   qrHint: { fontSize: 13, color: APP_COLORS.textMuted, marginBottom: 16 },
   qrContainer: { backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: APP_COLORS.border, overflow: 'hidden' },
   cancelClaimBtn: {
@@ -493,8 +510,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: APP_COLORS.success,
   },
-  successEmoji: { fontSize: 36, marginBottom: 8 },
-  successTitle: { fontSize: 16, fontWeight: '800', color: APP_COLORS.success, marginBottom: 4 },
+successTitle: { fontSize: 16, fontWeight: '800', color: APP_COLORS.success, marginBottom: 4 },
   successSub: { fontSize: 13, color: APP_COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
   claimedOtherBox: {
     backgroundColor: '#fffbeb',

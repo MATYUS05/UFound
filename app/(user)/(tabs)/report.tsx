@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, uploadImageToCloudinary } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,10 +92,10 @@ export default function ReportScreen() {
         title: title.trim(),
         description: description.trim(),
         category,
-        images: uploadedImages,
+        images: uploadedImages.filter((u): u is string => typeof u === 'string' && u.startsWith('http')),
         location,
         foundBy: { uid: profile.uid, name: profile.name, nim: profile.nim },
-        status: 'available',
+        status: 'pending',
         createdAt: serverTimestamp(),
       });
 
@@ -126,18 +127,18 @@ export default function ReportScreen() {
                 <TouchableOpacity
                   style={styles.removePhoto}
                   onPress={() => setImages((p) => p.filter((_, i) => i !== idx))}>
-                  <Text style={styles.removePhotoText}>✕</Text>
+                  <Ionicons name="close" size={12} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))}
             {images.length < 3 && (
               <View style={styles.addPhotoRow}>
                 <TouchableOpacity style={styles.addPhoto} onPress={takePhoto}>
-                  <Text style={styles.addPhotoIcon}>📷</Text>
+                  <Ionicons name="camera-outline" size={24} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
                   <Text style={styles.addPhotoText}>Kamera</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.addPhoto} onPress={pickImage}>
-                  <Text style={styles.addPhotoIcon}>🖼</Text>
+                  <Ionicons name="images-outline" size={24} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
                   <Text style={styles.addPhotoText}>Galeri</Text>
                 </TouchableOpacity>
               </View>
@@ -163,7 +164,11 @@ export default function ReportScreen() {
               key={cat.id}
               style={[styles.categoryBtn, category === cat.id && styles.categoryBtnActive]}
               onPress={() => setCategory(cat.id)}>
-              <Text style={styles.categoryBtnEmoji}>{cat.emoji}</Text>
+              <Ionicons
+                name={cat.icon as any}
+                size={16}
+                color={category === cat.id ? APP_COLORS.primary : APP_COLORS.textMuted}
+              />
               <Text style={[styles.categoryBtnText, category === cat.id && styles.categoryBtnTextActive]}>
                 {cat.label}
               </Text>
@@ -188,7 +193,10 @@ export default function ReportScreen() {
         <Text style={styles.sectionLabel}>Lokasi Ditemukan *</Text>
 
         {/* UMN Preset Locations */}
-        <Text style={styles.locationHint}>📌 Pilih lokasi di kampus UMN:</Text>
+        <View style={styles.locationHintRow}>
+          <Ionicons name="pin-outline" size={12} color={APP_COLORS.textMuted} />
+          <Text style={styles.locationHint}> Pilih lokasi di kampus UMN:</Text>
+        </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -220,14 +228,14 @@ export default function ReportScreen() {
           {loadingLocation ? (
             <ActivityIndicator size="small" color={APP_COLORS.primary} />
           ) : (
-            <Text style={styles.locationBtnIcon}>📍</Text>
+            <Ionicons name="navigate-outline" size={22} color={APP_COLORS.primary} />
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.locationBtnText}>
-              {location ? `✓ ${location.address}` : 'Atau gunakan GPS saat ini'}
+              {location ? location.address : 'Atau gunakan GPS saat ini'}
             </Text>
           </View>
-          {location && <Text style={styles.checkIcon}>✓</Text>}
+          {location && <Ionicons name="checkmark-circle" size={20} color={APP_COLORS.success} />}
         </TouchableOpacity>
 
         {/* Map Preview */}
@@ -305,7 +313,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  addPhotoIcon: { fontSize: 24, marginBottom: 4 },
   addPhotoText: { fontSize: 11, color: APP_COLORS.textMuted, fontWeight: '600' },
   categoryGrid: {
     flexDirection: 'row',
@@ -325,7 +332,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   categoryBtnActive: { backgroundColor: APP_COLORS.primaryLight, borderColor: APP_COLORS.primary },
-  categoryBtnEmoji: { fontSize: 16 },
   categoryBtnText: { fontSize: 12, fontWeight: '600', color: APP_COLORS.textMuted },
   categoryBtnTextActive: { color: APP_COLORS.primary },
   locationBtn: {
@@ -339,11 +345,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
   },
-  locationBtnIcon: { fontSize: 22 },
   locationBtnText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.text },
   locationAddress: { fontSize: 12, color: APP_COLORS.textMuted, marginTop: 2 },
-  checkIcon: { fontSize: 18, color: APP_COLORS.success },
-  locationHint: { fontSize: 12, color: APP_COLORS.textMuted, marginBottom: 8 },
+  locationHintRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  locationHint: { fontSize: 12, color: APP_COLORS.textMuted },
   locChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,

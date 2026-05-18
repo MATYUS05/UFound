@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Item, CATEGORIES, APP_COLORS } from '@/lib/types';
@@ -41,23 +42,30 @@ export default function ActivityScreen() {
   const loading = activeTab === 'found' ? loadingFound : loadingClaimed;
 
   const statusLabel = (s: string) =>
-    s === 'available' ? 'Tersedia' : s === 'claimed' ? 'Diklaim' : 'Selesai';
+    s === 'pending' ? 'Menunggu' :
+    s === 'available' ? 'Tersedia' :
+    s === 'claimed' ? 'Diklaim' : 'Selesai';
   const statusColor = (s: string) =>
-    s === 'available' ? APP_COLORS.success : s === 'claimed' ? APP_COLORS.warning : APP_COLORS.textLight;
+    s === 'pending' ? APP_COLORS.warning :
+    s === 'available' ? APP_COLORS.success :
+    s === 'claimed' ? APP_COLORS.primary : APP_COLORS.textLight;
 
   const renderItem = ({ item }: { item: Item }) => {
-    const catEmoji = CATEGORIES.find((c) => c.id === item.category)?.emoji ?? '📦';
+    const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
     return (
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push(`/(user)/item/${item.id}`)}>
         <View style={styles.cardEmoji}>
-          <Text style={styles.cardEmojiText}>{catEmoji}</Text>
+          <Ionicons name={catIcon} size={24} color={APP_COLORS.primary} />
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
           <Text style={styles.cardMeta}>{item.category}  ·  {format(item.createdAt)}</Text>
-          <Text style={styles.cardLocation} numberOfLines={1}>📍 {item.location?.address || '-'}</Text>
+          <View style={styles.cardLocationRow}>
+            <Ionicons name="location-outline" size={11} color={APP_COLORS.textMuted} />
+            <Text style={styles.cardLocation} numberOfLines={1}> {item.location?.address || '-'}</Text>
+          </View>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusColor(item.status) + '22' }]}>
           <Text style={[styles.statusText, { color: statusColor(item.status) }]}>
@@ -76,16 +84,22 @@ export default function ActivityScreen() {
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'found' && styles.tabBtnActive]}
             onPress={() => setActiveTab('found')}>
-            <Text style={[styles.tabBtnText, activeTab === 'found' && styles.tabBtnTextActive]}>
-              📦 Saya Temukan ({foundItems.length})
-            </Text>
+            <View style={styles.tabBtnInner}>
+              <Ionicons name="cube-outline" size={13} color={activeTab === 'found' ? APP_COLORS.primary : 'rgba(255,255,255,0.9)'} />
+              <Text style={[styles.tabBtnText, activeTab === 'found' && styles.tabBtnTextActive]}>
+                {' '}Saya Temukan ({foundItems.length})
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'claimed' && styles.tabBtnActive]}
             onPress={() => setActiveTab('claimed')}>
-            <Text style={[styles.tabBtnText, activeTab === 'claimed' && styles.tabBtnTextActive]}>
-              🔖 Saya Klaim ({claimedItems.length})
-            </Text>
+            <View style={styles.tabBtnInner}>
+              <Ionicons name="bookmark-outline" size={13} color={activeTab === 'claimed' ? APP_COLORS.primary : 'rgba(255,255,255,0.9)'} />
+              <Text style={[styles.tabBtnText, activeTab === 'claimed' && styles.tabBtnTextActive]}>
+                {' '}Saya Klaim ({claimedItems.length})
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -96,7 +110,12 @@ export default function ActivityScreen() {
         </View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>{activeTab === 'found' ? '📦' : '🔖'}</Text>
+          <Ionicons
+          name={activeTab === 'found' ? 'cube-outline' : 'bookmark-outline'}
+          size={48}
+          color={APP_COLORS.textMuted}
+          style={{ marginBottom: 12 }}
+        />
           <Text style={styles.emptyTitle}>
             {activeTab === 'found' ? 'Belum ada barang yang kamu temukan' : 'Belum ada barang yang kamu klaim'}
           </Text>
@@ -133,6 +152,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabBtnActive: { backgroundColor: APP_COLORS.background },
+  tabBtnInner: { flexDirection: 'row', alignItems: 'center' },
   tabBtnText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
   tabBtnTextActive: { color: APP_COLORS.primary },
   list: { padding: 16, paddingBottom: 24 },
@@ -158,15 +178,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardEmojiText: { fontSize: 24 },
   cardInfo: { flex: 1 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: APP_COLORS.text, marginBottom: 2 },
   cardMeta: { fontSize: 11, color: APP_COLORS.textMuted, marginBottom: 2 },
-  cardLocation: { fontSize: 11, color: APP_COLORS.textMuted },
+  cardLocationRow: { flexDirection: 'row', alignItems: 'center' },
+  cardLocation: { fontSize: 11, color: APP_COLORS.textMuted, flex: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 10, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 15, fontWeight: '600', color: APP_COLORS.text, textAlign: 'center', marginBottom: 6 },
   emptySub: { fontSize: 13, color: APP_COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
 });
