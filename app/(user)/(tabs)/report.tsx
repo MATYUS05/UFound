@@ -10,8 +10,11 @@ import {
   ActivityIndicator,
   Image as RNImage,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, uploadImageToCloudinary } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +23,9 @@ import { UMN_CENTER, UMN_LOCATIONS } from '@/lib/umnLocations';
 import OSMMap from '@/components/OSMMap';
 
 export default function ReportScreen() {
+  const router = useRouter();
   const { profile } = useAuth();
+  const { top, bottom } = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -29,17 +34,19 @@ export default function ReportScreen() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const pickImage = async () => {
+  const pickFromGallery = async () => {
     if (images.length >= 3) { Alert.alert('Maks. 3 foto'); return; }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Izin diperlukan', 'Izinkan akses foto'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.7,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsMultipleSelection: true,
+      selectionLimit: 3 - images.length,
     });
-    if (!result.canceled) setImages((prev) => [...prev, result.assets[0].uri]);
+    if (!result.canceled) {
+      setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 3));
+    }
   };
 
   const takePhoto = async () => {
@@ -47,11 +54,21 @@ export default function ReportScreen() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Izin diperlukan', 'Izinkan akses kamera'); return; }
     const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
       quality: 0.7,
-      allowsEditing: true,
-      aspect: [4, 3],
     });
-    if (!result.canceled) setImages((prev) => [...prev, result.assets[0].uri]);
+    if (!result.canceled) {
+      setImages((prev) => [...prev, result.assets[0].uri].slice(0, 3));
+    }
+  };
+
+  const showImageOptions = () => {
+    if (images.length >= 3) { Alert.alert('Maks. 3 foto'); return; }
+    Alert.alert('Tambah Foto', 'Pilih sumber foto', [
+      { text: 'Kamera', onPress: takePhoto },
+      { text: 'Galeri', onPress: pickFromGallery },
+      { text: 'Batal', style: 'cancel' },
+    ]);
   };
 
   const getLocation = async () => {
@@ -91,15 +108,17 @@ export default function ReportScreen() {
         title: title.trim(),
         description: description.trim(),
         category,
-        images: uploadedImages,
+        images: uploadedImages.filter((u): u is string => typeof u === 'string' && u.startsWith('http')),
         location,
         foundBy: { uid: profile.uid, name: profile.name, nim: profile.nim },
-        status: 'available',
+        status: 'pending',
         createdAt: serverTimestamp(),
       });
 
-      Alert.alert('Berhasil', 'Laporan barang temuan berhasil dikirim', [
-        { text: 'OK', onPress: () => { setTitle(''); setDescription(''); setCategory(''); setImages([]); setLocation(null); } },
+      const reset = () => { setTitle(''); setDescription(''); setCategory(''); setImages([]); setLocation(null); };
+      Alert.alert('Berhasil', 'Laporan barang temuan berhasil dikirim. Ingin membuat laporan lain?', [
+        { text: 'Ya, Buat Lagi', onPress: reset },
+        { text: 'Tidak', onPress: () => { reset(); router.replace('/(user)/(tabs)'); } },
       ]);
     } catch (err) {
       Alert.alert('Error', 'Gagal menyimpan laporan. Coba lagi.');
@@ -110,40 +129,42 @@ export default function ReportScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 8 }]}>
         <Text style={styles.headerTitle}>Laporkan Barang Temuan</Text>
         <Text style={styles.headerSub}>Bantu pemiliknya menemukan barangnya kembali</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 60 + bottom + 16 }]} keyboardShouldPersistTaps="handled">
         {/* Photos */}
         <Text style={styles.sectionLabel}>Foto Barang</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-          <View style={styles.photoRow}>
+        <TouchableOpacity
+          style={[styles.uploadArea, images.length >= 3 && { opacity: 0.5 }]}
+          onPress={showImageOptions}
+          disabled={images.length >= 3}
+          activeOpacity={0.7}>
+          <View style={styles.uploadIconWrap}>
+            <Ionicons name="camera-outline" size={34} color={APP_COLORS.primary} />
+            <View style={styles.uploadPlusBadge}>
+              <Ionicons name="add" size={14} color="#fff" />
+            </View>
+          </View>
+          <Text style={styles.uploadTitle}>Tap to upload photos</Text>
+          <Text style={styles.uploadSub}>JPEG or PNG up to 10MB, max 3 photos</Text>
+        </TouchableOpacity>
+        {images.length > 0 && (
+          <View style={styles.thumbRow}>
             {images.map((uri, idx) => (
-              <View key={idx} style={styles.photoWrapper}>
-                <RNImage source={{ uri }} style={styles.photo} />
+              <View key={idx} style={styles.thumbWrap}>
+                <RNImage source={{ uri }} style={styles.thumbImg} />
                 <TouchableOpacity
                   style={styles.removePhoto}
                   onPress={() => setImages((p) => p.filter((_, i) => i !== idx))}>
-                  <Text style={styles.removePhotoText}>✕</Text>
+                  <Ionicons name="close" size={12} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))}
-            {images.length < 3 && (
-              <View style={styles.addPhotoRow}>
-                <TouchableOpacity style={styles.addPhoto} onPress={takePhoto}>
-                  <Text style={styles.addPhotoIcon}>📷</Text>
-                  <Text style={styles.addPhotoText}>Kamera</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.addPhoto} onPress={pickImage}>
-                  <Text style={styles.addPhotoIcon}>🖼</Text>
-                  <Text style={styles.addPhotoText}>Galeri</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
-        </ScrollView>
+        )}
 
         {/* Title */}
         <Text style={styles.sectionLabel}>Nama Barang *</Text>
@@ -163,7 +184,11 @@ export default function ReportScreen() {
               key={cat.id}
               style={[styles.categoryBtn, category === cat.id && styles.categoryBtnActive]}
               onPress={() => setCategory(cat.id)}>
-              <Text style={styles.categoryBtnEmoji}>{cat.emoji}</Text>
+              <Ionicons
+                name={cat.icon as any}
+                size={16}
+                color={category === cat.id ? APP_COLORS.primary : APP_COLORS.textMuted}
+              />
               <Text style={[styles.categoryBtnText, category === cat.id && styles.categoryBtnTextActive]}>
                 {cat.label}
               </Text>
@@ -188,12 +213,11 @@ export default function ReportScreen() {
         <Text style={styles.sectionLabel}>Lokasi Ditemukan *</Text>
 
         {/* UMN Preset Locations */}
-        <Text style={styles.locationHint}>📌 Pilih lokasi di kampus UMN:</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 10 }}
-          contentContainerStyle={{ gap: 8 }}>
+        <View style={styles.locationHintRow}>
+          <Ionicons name="pin-outline" size={12} color={APP_COLORS.textMuted} />
+          <Text style={styles.locationHint}> Pilih lokasi di kampus UMN:</Text>
+        </View>
+        <View style={styles.locChipGrid}>
           {UMN_LOCATIONS.map((loc) => (
             <TouchableOpacity
               key={loc.id}
@@ -213,21 +237,21 @@ export default function ReportScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         {/* GPS Button */}
         <TouchableOpacity style={styles.locationBtn} onPress={getLocation} disabled={loadingLocation}>
           {loadingLocation ? (
             <ActivityIndicator size="small" color={APP_COLORS.primary} />
           ) : (
-            <Text style={styles.locationBtnIcon}>📍</Text>
+            <Ionicons name="navigate-outline" size={22} color={APP_COLORS.primary} />
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.locationBtnText}>
-              {location ? `✓ ${location.address}` : 'Atau gunakan GPS saat ini'}
+              {location ? location.address : 'Atau gunakan GPS saat ini'}
             </Text>
           </View>
-          {location && <Text style={styles.checkIcon}>✓</Text>}
+          {location && <Ionicons name="checkmark-circle" size={20} color={APP_COLORS.success} />}
         </TouchableOpacity>
 
         {/* Map Preview */}
@@ -260,7 +284,7 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
-  header: { backgroundColor: APP_COLORS.primary, paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20 },
+  header: { backgroundColor: APP_COLORS.primary, paddingTop: 8, paddingBottom: 20, paddingHorizontal: 20 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
   headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
   scroll: { flex: 1 },
@@ -278,35 +302,56 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   textarea: { minHeight: 100 },
-  photoRow: { flexDirection: 'row', gap: 10 },
-  photoWrapper: { position: 'relative' },
-  photo: { width: 100, height: 100, borderRadius: 12 },
-  removePhoto: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: APP_COLORS.error,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removePhotoText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  addPhotoRow: { flexDirection: 'row', gap: 10 },
-  addPhoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
+  uploadArea: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: APP_COLORS.border,
     borderStyle: 'dashed',
+    paddingVertical: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    gap: 6,
+  },
+  uploadIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: APP_COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    marginBottom: 6,
   },
-  addPhotoIcon: { fontSize: 24, marginBottom: 4 },
-  addPhotoText: { fontSize: 11, color: APP_COLORS.textMuted, fontWeight: '600' },
+  uploadPlusBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: APP_COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  uploadTitle: { fontSize: 14, fontWeight: '700', color: APP_COLORS.text },
+  uploadSub: { fontSize: 12, color: APP_COLORS.textMuted },
+  thumbRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  thumbWrap: { width: 80, height: 80, borderRadius: 10, overflow: 'hidden' },
+  thumbImg: { width: 80, height: 80 },
+  removePhoto: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: APP_COLORS.error,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -325,7 +370,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   categoryBtnActive: { backgroundColor: APP_COLORS.primaryLight, borderColor: APP_COLORS.primary },
-  categoryBtnEmoji: { fontSize: 16 },
   categoryBtnText: { fontSize: 12, fontWeight: '600', color: APP_COLORS.textMuted },
   categoryBtnTextActive: { color: APP_COLORS.primary },
   locationBtn: {
@@ -339,11 +383,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
   },
-  locationBtnIcon: { fontSize: 22 },
   locationBtnText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.text },
   locationAddress: { fontSize: 12, color: APP_COLORS.textMuted, marginTop: 2 },
-  checkIcon: { fontSize: 18, color: APP_COLORS.success },
-  locationHint: { fontSize: 12, color: APP_COLORS.textMuted, marginBottom: 8 },
+  locationHintRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  locationHint: { fontSize: 12, color: APP_COLORS.textMuted },
+  locChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
   locChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,

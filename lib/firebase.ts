@@ -31,6 +31,9 @@ export { app, auth, db };
 export async function uploadImageToCloudinary(localUri: string): Promise<string> {
   const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Konfigurasi Cloudinary tidak lengkap. Periksa file .env');
+  }
   const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
   const formData = new FormData();
@@ -38,7 +41,9 @@ export async function uploadImageToCloudinary(localUri: string): Promise<string>
   formData.append('upload_preset', uploadPreset!);
 
   const res = await fetch(url, { method: 'POST', body: formData });
-  if (!res.ok) throw new Error('Upload gambar gagal');
   const data = await res.json();
+  if (!res.ok || !data.secure_url) {
+    throw new Error(data?.error?.message ?? 'Upload gambar gagal');
+  }
   return data.secure_url as string;
 }

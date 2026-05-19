@@ -14,6 +14,8 @@ import {
 import { useRouter, Link } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '@/lib/firebase';
 import { APP_COLORS } from '@/lib/types';
 
@@ -24,8 +26,8 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [adminCode, setAdminCode] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
@@ -41,11 +43,6 @@ export default function SignupScreen() {
       Alert.alert('Error', 'Password minimal 6 karakter');
       return;
     }
-    if (isAdmin && adminCode !== (process.env.EXPO_PUBLIC_ADMIN_CODE ?? 'ADMIN2024')) {
-      Alert.alert('Error', 'Kode admin salah');
-      return;
-    }
-
     setLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -54,7 +51,7 @@ export default function SignupScreen() {
         name: name.trim(),
         nim: nim.trim(),
         email: email.trim().toLowerCase(),
-        role: isAdmin ? 'admin' : 'user',
+        role: 'user',
         createdAt: serverTimestamp(),
       });
       router.replace('/');
@@ -70,8 +67,9 @@ export default function SignupScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
@@ -106,50 +104,45 @@ export default function SignupScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Min. 6 karakter"
-              placeholderTextColor={APP_COLORS.textLight}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.inputInner}
+                placeholder="Min. 6 karakter"
+                placeholderTextColor={APP_COLORS.textLight}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={APP_COLORS.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Konfirmasi Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ulangi password"
-              placeholderTextColor={APP_COLORS.textLight}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.adminToggle}
-            onPress={() => setIsAdmin(!isAdmin)}>
-            <View style={[styles.checkbox, isAdmin && styles.checkboxActive]}>
-              {isAdmin && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.adminToggleText}>Daftar sebagai Admin</Text>
-          </TouchableOpacity>
-
-          {isAdmin && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Kode Admin</Text>
+            <View style={styles.inputWrapper}>
               <TextInput
-                style={styles.input}
-                placeholder="Masukkan kode admin"
+                style={styles.inputInner}
+                placeholder="Ulangi password"
                 placeholderTextColor={APP_COLORS.textLight}
-                value={adminCode}
-                onChangeText={setAdminCode}
-                secureTextEntry
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
               />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(v => !v)} style={styles.eyeBtn}>
+                <Ionicons
+                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={APP_COLORS.textMuted}
+                />
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -173,6 +166,7 @@ export default function SignupScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -214,20 +208,22 @@ const styles = StyleSheet.create({
     color: APP_COLORS.text,
     backgroundColor: APP_COLORS.background,
   },
-  adminToggle: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: APP_COLORS.border,
-    marginRight: 10,
-    justifyContent: 'center',
+  inputWrapper: {
+    flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.border,
+    borderRadius: 12,
+    backgroundColor: APP_COLORS.background,
+    paddingHorizontal: 14,
   },
-  checkboxActive: { backgroundColor: APP_COLORS.primary, borderColor: APP_COLORS.primary },
-  checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  adminToggleText: { fontSize: 14, color: APP_COLORS.text },
+  inputInner: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: APP_COLORS.text,
+  },
+  eyeBtn: { padding: 4 },
   button: {
     backgroundColor: APP_COLORS.primary,
     borderRadius: 12,
