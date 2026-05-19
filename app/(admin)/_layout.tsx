@@ -17,7 +17,7 @@ export default function AdminLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="item/[id]"
-        options={{ headerShown: true, title: 'Detail Barang', headerBackTitle: 'Kembali' }}
+        options={{ headerShown: true, title: 'Detail Barang', headerBackTitle: 'Kembali', headerShadowVisible: false }}
       />
     </Stack>
   );

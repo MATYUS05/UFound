@@ -12,7 +12,7 @@ export interface UserProfile {
   photoURL?: string;
 }
 
-export type ItemStatus = 'pending' | 'available' | 'claimed' | 'completed';
+export type ItemStatus = 'pending' | 'available' | 'claim_pending' | 'claimed' | 'completed';
 
 export interface ItemLocation {
   latitude: number;
@@ -46,6 +46,11 @@ export interface Item {
   completedAt?: Timestamp;
   approvedAt?: Timestamp;
   createdAt: Timestamp;
+  claimProof?: {
+    location: string;
+    description: string;
+  };
+  rejectedClaimers?: string[];
 }
 
 export interface Comment {

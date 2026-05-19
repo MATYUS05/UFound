@@ -10,6 +10,8 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import {
   collection,
@@ -27,6 +29,8 @@ import { Item, APP_COLORS, CATEGORIES } from '@/lib/types';
 import { formatFull, format } from '@/lib/dateUtils';
 
 export default function AdminScanScreen() {
+  const router = useRouter();
+  const { top, bottom } = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [scannedItem, setScannedItem] = useState<Item | null>(null);
@@ -107,7 +111,7 @@ export default function AdminScanScreen() {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 8 }]}>
         <Text style={styles.headerTitle}>Scan & Konfirmasi</Text>
         <Text style={styles.headerSub}>Scan QR code dari pengambil barang</Text>
       </View>
@@ -168,9 +172,12 @@ export default function AdminScanScreen() {
             data={completedClaims}
             keyExtractor={(i) => i.id}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{ paddingBottom: 60 + bottom + 16 }}
             renderItem={({ item }) => (
-              <View style={styles.historyCard}>
+              <TouchableOpacity
+                style={styles.historyCard}
+                onPress={() => router.push(`/(admin)/item/${item.id}`)}
+                activeOpacity={0.7}>
                 <Ionicons name={catIcon(item.category)} size={28} color={APP_COLORS.primary} style={{ width: 36 }} />
                 <View style={styles.historyInfo}>
                   <Text style={styles.historyTitle} numberOfLines={1}>{item.title}</Text>
@@ -184,7 +191,7 @@ export default function AdminScanScreen() {
                 <View style={styles.completedBadge}>
                   <Text style={styles.completedBadgeText}>Selesai</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )}
@@ -248,7 +255,7 @@ export default function AdminScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
-  header: { backgroundColor: APP_COLORS.primary, paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20 },
+  header: { backgroundColor: APP_COLORS.primary, paddingTop: 8, paddingBottom: 16, paddingHorizontal: 20 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
   headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
 

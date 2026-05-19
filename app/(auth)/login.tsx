@@ -14,6 +14,8 @@ import {
 import { useRouter, Link } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/lib/firebase';
 import { APP_COLORS } from '@/lib/types';
 
@@ -27,6 +29,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
@@ -136,8 +139,9 @@ export default function LoginScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
@@ -188,15 +192,24 @@ export default function LoginScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={[styles.input, isLocked && styles.inputDisabled]}
-              placeholder="Masukkan password"
-              placeholderTextColor={APP_COLORS.textLight}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isLocked}
-            />
+            <View style={[styles.inputWrapper, isLocked && styles.inputDisabled]}>
+              <TextInput
+                style={styles.inputInner}
+                placeholder="Masukkan password"
+                placeholderTextColor={APP_COLORS.textLight}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                editable={!isLocked}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={APP_COLORS.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -223,6 +236,7 @@ export default function LoginScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -286,6 +300,22 @@ const styles = StyleSheet.create({
     color: APP_COLORS.text,
     backgroundColor: APP_COLORS.background,
   },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.border,
+    borderRadius: 12,
+    backgroundColor: APP_COLORS.background,
+    paddingHorizontal: 14,
+  },
+  inputInner: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: APP_COLORS.text,
+  },
+  eyeBtn: { padding: 4 },
   inputDisabled: { opacity: 0.5, backgroundColor: APP_COLORS.border },
   button: {
     backgroundColor: APP_COLORS.primary,

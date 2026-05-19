@@ -9,15 +9,18 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { APP_COLORS } from '@/lib/types';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const { profile, refreshProfile } = useAuth();
+  const { top, bottom } = useSafeAreaInsets();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile?.name ?? '');
@@ -63,18 +66,23 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 8 }]}>
         <Text style={styles.headerTitle}>Profil</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 60 + bottom + 16 }]}>
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
           <View style={[styles.roleBadge, profile?.role === 'admin' && styles.roleBadgeAdmin]}>
-            <Text style={styles.roleText}>{profile?.role === 'admin' ? '👑 Admin' : '👤 User'}</Text>
+            <Ionicons
+              name={profile?.role === 'admin' ? 'shield-checkmark' : 'person'}
+              size={13}
+              color={APP_COLORS.text}
+            />
+            <Text style={styles.roleText}>{profile?.role === 'admin' ? ' Admin' : ' User'}</Text>
           </View>
         </View>
 
@@ -84,8 +92,10 @@ export default function ProfileScreen() {
             <Text style={styles.cardTitle}>Informasi Akun</Text>
             {!editing && (
               <TouchableOpacity
+                style={styles.editBtnRow}
                 onPress={() => { setName(profile?.name ?? ''); setNim(profile?.nim ?? ''); setEditing(true); }}>
-                <Text style={styles.editBtn}>✏️ Edit</Text>
+                <Ionicons name="pencil-outline" size={14} color={APP_COLORS.primary} />
+                <Text style={styles.editBtn}> Edit</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -146,7 +156,8 @@ export default function ProfileScreen() {
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>🚪 Keluar dari Akun</Text>
+          <Ionicons name="log-out-outline" size={18} color={APP_COLORS.error} />
+          <Text style={styles.logoutText}> Keluar dari Akun</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -155,7 +166,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
-  header: { backgroundColor: APP_COLORS.primary, paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20 },
+  header: { backgroundColor: APP_COLORS.primary, paddingTop: 8, paddingBottom: 20, paddingHorizontal: 20 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
   content: { padding: 20 },
   avatarSection: { alignItems: 'center', marginBottom: 24 },
@@ -170,6 +181,8 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 36, fontWeight: '700', color: '#fff' },
   roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
@@ -190,6 +203,7 @@ const styles = StyleSheet.create({
   },
   cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   cardTitle: { fontSize: 15, fontWeight: '700', color: APP_COLORS.text },
+  editBtnRow: { flexDirection: 'row', alignItems: 'center' },
   editBtn: { fontSize: 13, color: APP_COLORS.primary, fontWeight: '600' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: APP_COLORS.border },
   infoLabel: { fontSize: 13, color: APP_COLORS.textMuted },
@@ -212,10 +226,12 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: APP_COLORS.primary, alignItems: 'center' },
   saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   logoutBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
     borderWidth: 1.5,
     borderColor: APP_COLORS.error,
     marginBottom: 30,

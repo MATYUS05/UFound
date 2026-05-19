@@ -97,7 +97,7 @@ export default function Index() {
       else if (profile?.role === 'admin') router.replace('/(admin)/(tabs)');
       else router.replace('/(user)/(tabs)');
     });
-  }, [animDone, loading]);
+  }, [animDone, loading, user, profile, router]);
 
   return (
     <Animated.View style={[styles.container, { opacity: screenOpacity }]}>

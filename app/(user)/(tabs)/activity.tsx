@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ type Tab = 'found' | 'claimed';
 export default function ActivityScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { top, bottom } = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('found');
   const [foundItems, setFoundItems] = useState<Item[]>([]);
   const [claimedItems, setClaimedItems] = useState<Item[]>([]);
@@ -32,7 +34,10 @@ export default function ActivityScreen() {
     return onSnapshot(q, (snap) => {
       const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Item));
       setFoundItems(all.filter((i) => i.foundBy?.uid === profile.uid));
-      setClaimedItems(all.filter((i) => i.claimedBy?.uid === profile.uid));
+      setClaimedItems(all.filter((i) =>
+        i.claimedBy?.uid === profile.uid ||
+        (i.rejectedClaimers?.includes(profile.uid) ?? false)
+      ));
       setLoadingFound(false);
       setLoadingClaimed(false);
     });
@@ -41,17 +46,26 @@ export default function ActivityScreen() {
   const items = activeTab === 'found' ? foundItems : claimedItems;
   const loading = activeTab === 'found' ? loadingFound : loadingClaimed;
 
-  const statusLabel = (s: string) =>
-    s === 'pending' ? 'Menunggu' :
-    s === 'available' ? 'Tersedia' :
-    s === 'claimed' ? 'Diklaim' : 'Selesai';
-  const statusColor = (s: string) =>
-    s === 'pending' ? APP_COLORS.warning :
-    s === 'available' ? APP_COLORS.success :
-    s === 'claimed' ? APP_COLORS.primary : APP_COLORS.textLight;
+  const statusLabel = (s: string) => {
+    if (s === 'pending') return 'Menunggu';
+    if (s === 'available') return 'Tersedia';
+    if (s === 'claim_pending') return 'Klaim Ditinjau';
+    if (s === 'claimed') return 'Diklaim';
+    return 'Selesai';
+  };
+  const statusColor = (s: string) => {
+    if (s === 'pending') return APP_COLORS.warning;
+    if (s === 'available') return APP_COLORS.success;
+    if (s === 'claim_pending') return APP_COLORS.primary;
+    if (s === 'claimed') return APP_COLORS.primary;
+    return APP_COLORS.textLight;
+  };
 
   const renderItem = ({ item }: { item: Item }) => {
     const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
+    const isRejected = activeTab === 'claimed' && (item.rejectedClaimers?.includes(profile?.uid ?? '') ?? false);
+    const badgeColor = isRejected ? APP_COLORS.error : statusColor(item.status);
+    const badgeLabel = isRejected ? 'Klaim Ditolak' : statusLabel(item.status);
     return (
       <TouchableOpacity
         style={styles.card}
@@ -67,9 +81,9 @@ export default function ActivityScreen() {
             <Text style={styles.cardLocation} numberOfLines={1}> {item.location?.address || '-'}</Text>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusColor(item.status) + '22' }]}>
-          <Text style={[styles.statusText, { color: statusColor(item.status) }]}>
-            {statusLabel(item.status)}
+        <View style={[styles.statusBadge, { backgroundColor: `${badgeColor}22` }]}>
+          <Text style={[styles.statusText, { color: badgeColor }]}>
+            {badgeLabel}
           </Text>
         </View>
       </TouchableOpacity>
@@ -78,7 +92,7 @@ export default function ActivityScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 8 }]}>
         <Text style={styles.headerTitle}>Aktivitas Saya</Text>
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -130,7 +144,7 @@ export default function ActivityScreen() {
           data={items}
           renderItem={renderItem}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: 60 + bottom + 16 }]}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -140,7 +154,7 @@ export default function ActivityScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
-  header: { backgroundColor: APP_COLORS.primary, paddingTop: 56, paddingBottom: 0, paddingHorizontal: 16 },
+  header: { backgroundColor: APP_COLORS.primary, paddingTop: 8, paddingBottom: 0, paddingHorizontal: 16 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 14 },
   tabRow: { flexDirection: 'row', gap: 8 },
   tabBtn: {

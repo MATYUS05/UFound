@@ -8,11 +8,12 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
-import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, deleteDoc, limit } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { db } from '@/lib/firebase';
 import { Item, CATEGORIES, APP_COLORS, ItemStatus } from '@/lib/types';
 import { format } from '@/lib/dateUtils';
@@ -23,30 +24,44 @@ const STATUS_FILTERS: [Filter, string][] = [
   ['', 'Semua'],
   ['pending', 'Menunggu'],
   ['available', 'Tersedia'],
+  ['claim_pending', 'Klaim Ditinjau'],
   ['claimed', 'Diklaim'],
   ['completed', 'Selesai'],
 ];
 
+const PAGE_SIZE = 10;
+
 export default function AdminItemsScreen() {
   const router = useRouter();
+  const { top, bottom } = useSafeAreaInsets();
   const [items, setItems] = useState<Item[]>([]);
   const [filtered, setFiltered] = useState<Item[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Filter>('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
   const hasActiveFilter = !!statusFilter || !!categoryFilter;
 
   useEffect(() => {
-    const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
+    const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'), limit(pageSize));
+    return onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Item)));
+      setHasMore(snap.docs.length === pageSize);
       setLoading(false);
+      setLoadingMore(false);
     });
-    return unsub;
-  }, []);
+  }, [pageSize]);
+
+  const onEndReached = useCallback(() => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    setPageSize((p) => p + PAGE_SIZE);
+  }, [hasMore, loadingMore]);
 
   useEffect(() => {
     let r = [...items];
@@ -65,7 +80,7 @@ export default function AdminItemsScreen() {
     setFiltered(r);
   }, [items, search, statusFilter, categoryFilter]);
 
-  const handleDelete = (item: Item) => {
+  const handleDelete = useCallback((item: Item) => {
     Alert.alert('Hapus Barang', `Yakin hapus "${item.title}"?`, [
       { text: 'Batal', style: 'cancel' },
       {
@@ -80,7 +95,7 @@ export default function AdminItemsScreen() {
         },
       },
     ]);
-  };
+  }, []);
 
   const renderItem = useCallback(({ item }: { item: Item }) => {
     const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
@@ -100,7 +115,8 @@ export default function AdminItemsScreen() {
             <Image
               source={{ uri: item.images[0] }}
               style={styles.cardImage}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
             />
           ) : (
             <View style={styles.cardImagePlaceholder}>
@@ -137,7 +153,7 @@ export default function AdminItemsScreen() {
         </TouchableOpacity>
       </View>
     );
-  }, []);
+  }, [handleDelete]);
 
   const ListEmpty = useCallback(() => (
     <View style={styles.center}>
@@ -152,7 +168,7 @@ export default function AdminItemsScreen() {
   return (
     <View style={styles.container}>
       {/* Fixed header — tidak bergerak saat list update */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 8 }]}>
         <Text style={styles.headerTitle}>Kelola Barang</Text>
         <Text style={styles.headerSub}>{filtered.length} barang ditemukan</Text>
 
@@ -230,31 +246,43 @@ export default function AdminItemsScreen() {
         data={filtered}
         renderItem={renderItem}
         keyExtractor={(i) => i.id}
-        contentContainerStyle={[styles.list, filtered.length === 0 && { flex: 1 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: 60 + bottom + 16 }, filtered.length === 0 && { flex: 1 }]}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews={false}
+        removeClippedSubviews
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={5}
         ListEmptyComponent={ListEmpty}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator color={APP_COLORS.primary} style={{ marginVertical: 12 }} /> : null
+        }
       />
     </View>
   );
 }
 
 function statusLabel(s: string) {
-  return s === 'pending' ? 'Menunggu' :
-    s === 'available' ? 'Tersedia' :
-    s === 'claimed' ? 'Diklaim' : 'Selesai';
+  if (s === 'pending') return 'Menunggu';
+  if (s === 'available') return 'Tersedia';
+  if (s === 'claim_pending') return 'Klaim Ditinjau';
+  if (s === 'claimed') return 'Diklaim';
+  return 'Selesai';
 }
 function statusColor(s: string) {
-  return s === 'pending' ? APP_COLORS.warning :
-    s === 'available' ? APP_COLORS.success :
-    s === 'claimed' ? APP_COLORS.primary : APP_COLORS.textMuted;
+  if (s === 'pending') return APP_COLORS.warning;
+  if (s === 'available') return APP_COLORS.success;
+  if (s === 'claim_pending') return APP_COLORS.primary;
+  if (s === 'claimed') return APP_COLORS.primary;
+  return APP_COLORS.textMuted;
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
   header: {
     backgroundColor: APP_COLORS.primary,
-    paddingTop: 56,
+    paddingTop: 8,
     paddingBottom: 14,
     paddingHorizontal: 16,
     gap: 10,

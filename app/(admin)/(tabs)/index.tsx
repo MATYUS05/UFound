@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import { format } from '@/lib/dateUtils';
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const router = useRouter();
+  const { top, bottom } = useSafeAreaInsets();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +52,7 @@ export default function AdminDashboard() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 8 }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
@@ -60,8 +62,7 @@ export default function AdminDashboard() {
             </View>
             <View>
               <Text style={styles.headerSub}>Selamat datang,</Text>
-              <Text style={styles.headerTitle}>{profile?.name}</Text>
-              <Text style={styles.headerRole}>NIM: {profile?.nim ?? '-'}  ·  Administrator</Text>
+              <Text style={styles.headerRole}> Administrator</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -162,7 +163,7 @@ function statusColor(s: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
-  header: { backgroundColor: APP_COLORS.primary, paddingTop: 56, paddingBottom: 24, paddingHorizontal: 20 },
+  header: { backgroundColor: APP_COLORS.primary, paddingTop: 8, paddingBottom: 24, paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1, marginRight: 12 },
   avatar: {
