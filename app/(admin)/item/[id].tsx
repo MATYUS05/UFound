@@ -24,7 +24,7 @@ import { formatFull, format } from '@/lib/dateUtils';
 export default function AdminItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { bottom } = useSafeAreaInsets();
+  const { top: safeTop, bottom } = useSafeAreaInsets();
   const bottomInset = Math.max(bottom, 20);
   const { width: screenWidth } = useWindowDimensions();
   const [item, setItem] = useState<Item | null>(null);
@@ -349,7 +349,7 @@ export default function AdminItemDetail() {
       {/* Lightbox Modal */}
       <Modal visible={lightboxVisible} transparent animationType="fade" onRequestClose={() => setLightboxVisible(false)}>
         <View style={styles.lightboxOverlay}>
-          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxVisible(false)}>
+          <TouchableOpacity style={[styles.lightboxClose, { top: safeTop + 8 }]} onPress={() => setLightboxVisible(false)}>
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
           <FlatList
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: APP_COLORS.border },
   dotActive: { width: 20, backgroundColor: APP_COLORS.primary },
   lightboxOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
-  lightboxClose: { position: 'absolute', top: 52, right: 16, zIndex: 10, padding: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 22 },
+  lightboxClose: { position: 'absolute', right: 16, zIndex: 10, padding: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 22 },
   lightboxDots: { position: 'absolute', bottom: 40, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
   lightboxDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)' },
   lightboxDotActive: { backgroundColor: '#fff', width: 20 },

@@ -71,7 +71,7 @@ export default function AdminDashboard() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 60 + bottom + 16 }]} showsVerticalScrollIndicator={false}>
         {/* Stats */}
         <View style={styles.statsGrid}>
           {[
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   headerRole: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
   logoutBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   logoutText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  content: { padding: 16, paddingBottom: 30 },
+  content: { padding: 16 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   statCard: {
     flex: 1,

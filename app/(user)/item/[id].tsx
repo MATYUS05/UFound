@@ -40,7 +40,7 @@ import { formatFull, format } from '@/lib/dateUtils';
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
-  const { bottom } = useSafeAreaInsets();
+  const { top: safeTop, bottom } = useSafeAreaInsets();
   const bottomInset = Math.max(bottom, 20);
   const { width: screenWidth } = useWindowDimensions();
   const [item, setItem] = useState<Item | null>(null);
@@ -439,7 +439,7 @@ export default function ItemDetailScreen() {
       {/* Lightbox Modal */}
       <Modal visible={lightboxVisible} transparent animationType="fade" onRequestClose={() => setLightboxVisible(false)}>
         <View style={styles.lightboxOverlay}>
-          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxVisible(false)}>
+          <TouchableOpacity style={[styles.lightboxClose, { top: safeTop + 8 }]} onPress={() => setLightboxVisible(false)}>
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
           <FlatList
@@ -758,7 +758,6 @@ successTitle: { fontSize: 16, fontWeight: '800', color: APP_COLORS.success, marg
   },
   lightboxClose: {
     position: 'absolute',
-    top: 52,
     right: 16,
     zIndex: 10,
     padding: 10,
