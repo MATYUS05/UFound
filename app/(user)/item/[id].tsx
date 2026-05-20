@@ -11,11 +11,12 @@ import {
   ActivityIndicator,
   Share,
   Platform,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   useWindowDimensions,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   doc,
@@ -39,6 +40,7 @@ import { formatFull, format } from '@/lib/dateUtils';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { profile } = useAuth();
   const { top: safeTop, bottom } = useSafeAreaInsets();
   const bottomInset = Math.max(bottom, 20);
@@ -56,6 +58,18 @@ export default function ItemDetailScreen() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const lightboxRef = useRef<FlatList>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -99,13 +113,16 @@ export default function ItemDetailScreen() {
         status: 'claim_pending',
         claimedBy: { uid: profile.uid, name: profile.name, nim: profile.nim },
         claimedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         claimProof: {
           location: claimLocation.trim(),
           description: claimDescription.trim(),
         },
       });
       setShowClaimForm(false);
-      Alert.alert('Pengajuan Terkirim', 'Klaimmu sedang dalam proses pengajuan. Admin akan meninjau dan menyetujui klaim kamu. Harap menunggu.');
+      Alert.alert('Pengajuan Terkirim', 'Klaimmu sedang dalam proses pengajuan. Admin akan meninjau dan menyetujui klaim kamu. Harap menunggu.', [
+        { text: 'OK', onPress: () => router.replace('/(user)/(tabs)/activity?tab=claimed') },
+      ]);
     } catch {
       Alert.alert('Error', 'Gagal mengklaim barang');
     } finally {
@@ -125,6 +142,7 @@ export default function ItemDetailScreen() {
               status: 'available',
               claimedBy: null,
               claimedAt: null,
+              updatedAt: serverTimestamp(),
             });
           } catch {
             Alert.alert('Error', 'Gagal membatalkan klaim');
@@ -181,6 +199,7 @@ export default function ItemDetailScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, marginBottom: keyboardHeight > 0 ? keyboardHeight + bottomInset : 0 }}>
       <ScrollView
         ref={scrollRef}
         style={styles.container}
@@ -246,10 +265,6 @@ export default function ItemDetailScreen() {
             <Text style={styles.dateText}>{format(item.createdAt)}</Text>
           </View>
 
-          {item.description ? (
-            <Text style={styles.description}>{item.description}</Text>
-          ) : null}
-
           {/* WHO FOUND */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Yang Menemukan</Text>
@@ -291,8 +306,8 @@ export default function ItemDetailScreen() {
             </View>
           )}
 
-          {/* LOCATION MAP — only visible when completed */}
-          {item.location?.latitude && item.status === 'completed' && (
+          {/* LOCATION MAP */}
+          {item.location?.latitude && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Lokasi Ditemukan</Text>
               <View style={styles.locationAddressRow}>
@@ -417,30 +432,28 @@ export default function ItemDetailScreen() {
 
       {/* Comment Input — only when available */}
       {item.status === 'available' && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={[styles.commentInputArea, { paddingBottom: bottomInset + 12 }]}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Tulis komentar..."
-              placeholderTextColor={APP_COLORS.textLight}
-              value={commentText}
-              onChangeText={setCommentText}
-              multiline
-              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, (!commentText.trim() || loadingComment) && { opacity: 0.5 }]}
-              onPress={handleSendComment}
-              disabled={!commentText.trim() || loadingComment}>
-              {loadingComment ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="send" size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+        <View style={[styles.commentInputArea, { paddingBottom: keyboardHeight > 0 ? 12 : bottomInset + 12 }]}>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Tulis komentar..."
+            placeholderTextColor={APP_COLORS.textLight}
+            value={commentText}
+            onChangeText={setCommentText}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!commentText.trim() || loadingComment) && { opacity: 0.5 }]}
+            onPress={handleSendComment}
+            disabled={!commentText.trim() || loadingComment}>
+            {loadingComment ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
       )}
+      </View>
 
       {/* Lightbox Modal */}
       <Modal visible={lightboxVisible} transparent animationType="fade" onRequestClose={() => setLightboxVisible(false)}>

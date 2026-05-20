@@ -50,7 +50,13 @@ export default function AdminItemsScreen() {
   useEffect(() => {
     const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'), limit(pageSize));
     return onSnapshot(q, (snap) => {
-      setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Item)));
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Item));
+      data.sort((a, b) => {
+        const ta = ((a as any).updatedAt ?? a.createdAt)?.toMillis?.() ?? 0;
+        const tb = ((b as any).updatedAt ?? b.createdAt)?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+      setItems(data);
       setHasMore(snap.docs.length === pageSize);
       setLoading(false);
       setLoadingMore(false);
@@ -148,9 +154,11 @@ export default function AdminItemsScreen() {
             </View>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
-          <Text style={styles.deleteBtnText}>Hapus</Text>
-        </TouchableOpacity>
+        {item.status !== 'completed' && (
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
+            <Text style={styles.deleteBtnText}>Hapus</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }, [handleDelete]);

@@ -88,6 +88,7 @@ export default function AdminScanScreen() {
       await updateDoc(doc(db, 'items', scannedItem.id), {
         status: 'completed',
         completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
       setShowModal(false);
       setScannedItem(null);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { collection, query, orderBy, onSnapshot, QueryConstraint, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/lib/firebase';
@@ -47,6 +49,31 @@ const STATUS_COLORS: Record<ItemStatus, string> = {
 
 const PAGE_SIZE = 10;
 
+const TIME_FILTERS: [string, string][] = [
+  ['', 'Semua'],
+  ['today', 'Hari Ini'],
+  ['week', 'Minggu Ini'],
+  ['month', 'Bulan Ini'],
+];
+
+function applyTimeFilter(items: Item[], time: string): Item[] {
+  if (!time) return items;
+  const now = new Date();
+  return items.filter((i) => {
+    const ts = i.createdAt;
+    if (!ts) return false;
+    const date: Date = ts.toDate ? ts.toDate() : new Date(ts as any);
+    if (time === 'today') return date.toDateString() === now.toDateString();
+    if (time === 'week') {
+      const ago = new Date(now);
+      ago.setDate(now.getDate() - 7);
+      return date >= ago;
+    }
+    if (time === 'month') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    return true;
+  });
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -58,12 +85,11 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [hasMore, setHasMore] = useState(true);
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<ItemStatus | ''>('');
-  const [showFilters, setShowFilters] = useState(false);
-
-  const hasActiveFilter = !!selectedStatus || !!selectedCategory;
+  const [selectedTime, setSelectedTime] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilterTime, setSearchFilterTime] = useState('');
+  const [searchFilterCategory, setSearchFilterCategory] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'), limit(pageSize));
@@ -80,21 +106,25 @@ export default function HomeScreen() {
   }, [pageSize]);
 
   useEffect(() => {
+    setFiltered(applyTimeFilter(items, selectedTime));
+  }, [items, selectedTime]);
+
+  const searchResults = useMemo(() => {
     let result = [...items];
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
       result = result.filter(
         (i) =>
           i.title.toLowerCase().includes(q) ||
-          i.description.toLowerCase().includes(q) ||
+          i.description?.toLowerCase().includes(q) ||
           i.location?.address?.toLowerCase().includes(q) ||
           i.foundBy?.name?.toLowerCase().includes(q)
       );
     }
-    if (selectedCategory) result = result.filter((i) => i.category === selectedCategory);
-    if (selectedStatus) result = result.filter((i) => i.status === selectedStatus);
-    setFiltered(result);
-  }, [items, search, selectedCategory, selectedStatus]);
+    result = applyTimeFilter(result, searchFilterTime);
+    if (searchFilterCategory) result = result.filter((i) => i.category === searchFilterCategory);
+    return result;
+  }, [items, searchQuery, searchFilterTime, searchFilterCategory]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -107,10 +137,20 @@ export default function HomeScreen() {
     setPageSize((p) => p + PAGE_SIZE);
   }, [hasMore, loadingMore]);
 
-  const renderItem = ({ item }: { item: Item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => router.push(`/(user)/item/${item.id}`)}>
+  const openSearch = () => {
+    setSearchQuery('');
+    setSearchFilterTime('');
+    setSearchFilterCategory('');
+    setSearchActive(true);
+  };
+
+  const closeSearch = () => {
+    setSearchActive(false);
+    setSearchQuery('');
+  };
+
+  const renderCard = (item: Item, onPress: () => void) => (
+    <TouchableOpacity style={styles.card} onPress={onPress}>
       {item.images?.length > 0 && typeof item.images[0] === 'string' && item.images[0].startsWith('http') ? (
         <Image source={{ uri: item.images[0] }} style={styles.cardImage} contentFit="cover" />
       ) : (
@@ -153,93 +193,53 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  const renderItem = ({ item }: { item: Item }) =>
+    renderCard(item, () => router.push(`/(user)/item/${item.id}`));
+
+  const renderSearchItem = ({ item }: { item: Item }) =>
+    renderCard(item, () => { closeSearch(); router.push(`/(user)/item/${item.id}`); });
+
+  const showSearchHint = !searchQuery.trim() && !searchFilterTime && !searchFilterCategory;
+
   return (
     <View style={styles.container}>
-      {/* Fixed top section — tidak terpengaruh scroll */}
+      {/* Fixed top section */}
       <View style={styles.topSection}>
-        {/* Header */}
         <View style={[styles.header, { paddingTop: top + 8 }]}>
           <Text style={styles.greeting}>Halo, {profile?.name?.split(' ')[0]}</Text>
           <Text style={styles.headerTitle}>Barang Temuan</Text>
+          <Text style={styles.itemCount}>
+            {items.length} terdaftar  ·  {items.filter(i => i.status === 'available').length} tersedia
+          </Text>
 
-          {/* Search + Filter Toggle */}
-          <View style={styles.searchRow}>
-            <View style={styles.searchContainer}>
-              <Ionicons name="search-outline" size={16} color={APP_COLORS.textMuted} style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Cari barang, lokasi, penemu..."
-                placeholderTextColor={APP_COLORS.textLight}
-                value={search}
-                onChangeText={setSearch}
-              />
-              {search.length > 0 && (
-                <TouchableOpacity onPress={() => setSearch('')}>
-                  <Ionicons name="close" size={16} color={APP_COLORS.textMuted} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity
-              style={[styles.filterToggleBtn, (showFilters || hasActiveFilter) && styles.filterToggleBtnActive]}
-              onPress={() => setShowFilters(!showFilters)}>
-              <Ionicons
-                name="options-outline"
-                size={18}
-                color={(showFilters || hasActiveFilter) ? APP_COLORS.primary : '#fff'}
-              />
-              {hasActiveFilter && <View style={styles.filterDot} />}
-            </TouchableOpacity>
-          </View>
-        </View>
+          {/* Tappable search bar */}
+          <TouchableOpacity style={styles.searchBar} onPress={openSearch} activeOpacity={0.8}>
+            <Ionicons name="search-outline" size={16} color={APP_COLORS.textMuted} style={{ marginRight: 8 }} />
+            <Text style={styles.searchBarPlaceholder}>Cari barang, lokasi, penemu...</Text>
+            <Ionicons name="options-outline" size={16} color={APP_COLORS.textMuted} />
+          </TouchableOpacity>
 
-        {/* Collapsible Filters */}
-        {showFilters && (
-          <View style={styles.filtersPanel}>
-            <Text style={styles.filterLabel}>Status</Text>
-            <View style={styles.filterChipRow}>
-              {([['', 'Semua'], ['available', 'Tersedia'], ['claimed', 'Diklaim'], ['completed', 'Selesai']] as [string, string][]).map(
-                ([val, label]) => (
-                  <TouchableOpacity
-                    key={val}
-                    style={[styles.filterChip, selectedStatus === val && styles.filterChipActive]}
-                    onPress={() => setSelectedStatus(val as ItemStatus | '')}>
-                    <Text style={[styles.filterChipText, selectedStatus === val && styles.filterChipTextActive]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              )}
-            </View>
-            <Text style={styles.filterLabel}>Kategori</Text>
-            <View style={styles.filterChipRow}>
+          {/* Time filter chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.timeChipRow}
+            contentContainerStyle={{ gap: 8 }}>
+            {TIME_FILTERS.map(([val, label]) => (
               <TouchableOpacity
-                style={[styles.filterChip, selectedCategory === '' && styles.filterChipActive]}
-                onPress={() => setSelectedCategory('')}>
-                <Text style={[styles.filterChipText, selectedCategory === '' && styles.filterChipTextActive]}>
-                  Semua
+                key={val}
+                style={[styles.timeChip, selectedTime === val && styles.timeChipActive]}
+                onPress={() => setSelectedTime(val)}>
+                <Text style={[styles.timeChipText, selectedTime === val && styles.timeChipTextActive]}>
+                  {label}
                 </Text>
               </TouchableOpacity>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[styles.filterChip, selectedCategory === cat.id && styles.filterChipActive]}
-                  onPress={() => setSelectedCategory(selectedCategory === cat.id ? '' : cat.id)}>
-                  <Ionicons
-                    name={cat.icon as any}
-                    size={12}
-                    color={selectedCategory === cat.id ? APP_COLORS.primary : APP_COLORS.textMuted}
-                  />
-                  <Text style={[styles.filterChipText, selectedCategory === cat.id && styles.filterChipTextActive]}>
-                    {' '}{cat.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
-      {/* Items List — flex:1 agar tidak bisa naik ke atas */}
+      {/* Items List */}
       <View style={styles.listSection}>
         {loading ? (
           <View style={styles.center}>
@@ -247,9 +247,9 @@ export default function HomeScreen() {
           </View>
         ) : filtered.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="search-outline" size={48} color={APP_COLORS.textMuted} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>Tidak ada barang ditemukan</Text>
-            <Text style={styles.emptySubtext}>Coba ubah filter pencarian</Text>
+            <Ionicons name="cube-outline" size={48} color={APP_COLORS.textMuted} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyText}>Belum ada barang</Text>
+            <Text style={styles.emptySubtext}>Belum ada barang temuan yang terdaftar</Text>
           </View>
         ) : (
           <FlatList
@@ -271,6 +271,105 @@ export default function HomeScreen() {
           />
         )}
       </View>
+
+      {/* Search Modal */}
+      <Modal visible={searchActive} animationType="slide" onRequestClose={closeSearch}>
+        <View style={[styles.searchModal, { paddingTop: top }]}>
+          {/* Header */}
+          <View style={styles.searchModalHeader}>
+            <TouchableOpacity onPress={closeSearch} style={styles.searchBackBtn}>
+              <Ionicons name="arrow-back" size={22} color={APP_COLORS.text} />
+            </TouchableOpacity>
+            <View style={styles.searchModalInputWrap}>
+              <Ionicons name="search-outline" size={16} color={APP_COLORS.primary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchModalInput}
+                placeholder="Cari barang, lokasi, penemu..."
+                placeholderTextColor={APP_COLORS.textLight}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color={APP_COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Filters */}
+          <View style={styles.searchFiltersSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.searchFilterRow}
+              keyboardShouldPersistTaps="always">
+              {TIME_FILTERS.map(([val, label]) => (
+                <TouchableOpacity
+                  key={`t-${val}`}
+                  style={[styles.filterChip, searchFilterTime === val && styles.filterChipActive]}
+                  onPress={() => setSearchFilterTime(val)}>
+                  <Text style={[styles.filterChipText, searchFilterTime === val && styles.filterChipTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={styles.filterDivider} />
+              <TouchableOpacity
+                style={[styles.filterChip, searchFilterCategory === '' && styles.filterChipActive]}
+                onPress={() => setSearchFilterCategory('')}>
+                <Text style={[styles.filterChipText, searchFilterCategory === '' && styles.filterChipTextActive]}>
+                  Semua Kategori
+                </Text>
+              </TouchableOpacity>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={`c-${cat.id}`}
+                  style={[styles.filterChip, searchFilterCategory === cat.id && styles.filterChipActive]}
+                  onPress={() => setSearchFilterCategory(searchFilterCategory === cat.id ? '' : cat.id)}>
+                  <Ionicons
+                    name={cat.icon as any}
+                    size={12}
+                    color={searchFilterCategory === cat.id ? APP_COLORS.primary : APP_COLORS.textMuted}
+                  />
+                  <Text style={[styles.filterChipText, searchFilterCategory === cat.id && styles.filterChipTextActive]}>
+                    {' '}{cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {!showSearchHint && (
+              <Text style={styles.searchResultCount}>{searchResults.length} hasil ditemukan</Text>
+            )}
+          </View>
+
+          {/* Results */}
+          {showSearchHint ? (
+            <View style={styles.searchEmpty}>
+              <Ionicons name="search-outline" size={52} color={APP_COLORS.textMuted} style={{ marginBottom: 14 }} />
+              <Text style={styles.searchEmptyTitle}>Cari barang temuan</Text>
+              <Text style={styles.searchEmptySub}>Ketik nama barang, lokasi, atau nama penemu</Text>
+            </View>
+          ) : searchResults.length === 0 ? (
+            <View style={styles.searchEmpty}>
+              <Ionicons name="file-tray-outline" size={52} color={APP_COLORS.textMuted} style={{ marginBottom: 14 }} />
+              <Text style={styles.searchEmptyTitle}>Tidak ditemukan</Text>
+              <Text style={styles.searchEmptySub}>Coba kata kunci lain atau ubah filter</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={searchResults}
+              renderItem={renderSearchItem}
+              keyExtractor={(i) => i.id}
+              contentContainerStyle={[styles.list, { paddingBottom: bottom + 24 }]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -293,45 +392,94 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  searchContainer: {
-    flex: 1,
+  itemCount: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: -4 },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
-  searchInput: { flex: 1, fontSize: 14, color: APP_COLORS.text },
-  filterToggleBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+  searchBarPlaceholder: { fontSize: 14, color: APP_COLORS.textLight, flex: 1 },
+  timeChipRow: { flexGrow: 0 },
+  timeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  filterToggleBtnActive: { backgroundColor: '#fff' },
-  filterDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: APP_COLORS.warning,
-  },
-  filtersPanel: {
+  timeChipActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  timeChipText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
+  timeChipTextActive: { color: APP_COLORS.primary },
+  list: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
+  card: {
     backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardImage: { width: '100%', height: 160 },
+  cardImagePlaceholder: { width: '100%', height: 120, justifyContent: 'center', alignItems: 'center' },
+  cardContent: { padding: 14 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: APP_COLORS.text, flex: 1, marginRight: 8 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+  cardCategoryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  cardCategory: { fontSize: 12, color: APP_COLORS.textMuted },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardFinderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4, flex: 1 },
+  cardFinder: { fontSize: 11, color: APP_COLORS.primary, fontWeight: '600' },
+  cardFinderNim: { fontSize: 10, color: APP_COLORS.textMuted, marginTop: 1 },
+  cardDate: { fontSize: 11, color: APP_COLORS.textLight, marginTop: 2 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
+  emptyText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.text, marginBottom: 4 },
+  emptySubtext: { fontSize: 14, color: APP_COLORS.textMuted },
+  searchModal: { flex: 1, backgroundColor: APP_COLORS.background },
+  searchModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.border,
   },
-  filterLabel: { fontSize: 11, fontWeight: '700', color: APP_COLORS.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  filterChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  searchBackBtn: { padding: 6 },
+  searchModalInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.primary,
+  },
+  searchModalInput: { flex: 1, fontSize: 14, color: APP_COLORS.text },
+  searchFiltersSection: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.border,
+    paddingBottom: 8,
+  },
+  searchFilterRow: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -345,40 +493,15 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: APP_COLORS.primaryLight, borderColor: APP_COLORS.primary },
   filterChipText: { fontSize: 12, fontWeight: '600', color: APP_COLORS.textMuted },
   filterChipTextActive: { color: APP_COLORS.primary },
-  list: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 24 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardImage: { width: '100%', height: 160 },
-  cardImagePlaceholder: {
-    width: '100%',
-    height: 120,
+  filterDivider: { width: 1, height: 20, backgroundColor: APP_COLORS.border, marginHorizontal: 4 },
+  searchResultCount: { fontSize: 12, color: APP_COLORS.textMuted, paddingHorizontal: 16, paddingTop: 6 },
+  searchEmpty: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingBottom: 80,
   },
-  cardContent: { padding: 14 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: APP_COLORS.text, flex: 1, marginRight: 8 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  cardCategoryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  cardCategory: { fontSize: 12, color: APP_COLORS.textMuted },
-  cardLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
-  cardLocation: { fontSize: 12, color: APP_COLORS.textMuted, flex: 1 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardFinderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4, flex: 1 },
-  cardFinder: { fontSize: 11, color: APP_COLORS.primary, fontWeight: '600' },
-  cardFinderNim: { fontSize: 10, color: APP_COLORS.textMuted, marginTop: 1 },
-  cardDate: { fontSize: 11, color: APP_COLORS.textLight, marginTop: 2 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
-  emptyText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.text, marginBottom: 4 },
-  emptySubtext: { fontSize: 14, color: APP_COLORS.textMuted },
+  searchEmptyTitle: { fontSize: 16, fontWeight: '600', color: APP_COLORS.text, marginBottom: 6 },
+  searchEmptySub: { fontSize: 14, color: APP_COLORS.textMuted, textAlign: 'center', lineHeight: 22 },
 });

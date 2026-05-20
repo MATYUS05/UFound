@@ -54,6 +54,7 @@ export default function AdminItemDetail() {
             await updateDoc(doc(db, 'items', item.id), {
               status: 'available',
               approvedAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
             });
           } catch { Alert.alert('Error', 'Gagal menyetujui laporan'); }
           finally { setLoading(false); }
@@ -88,7 +89,7 @@ export default function AdminItemDetail() {
         onPress: async () => {
           setLoading(true);
           try {
-            await updateDoc(doc(db, 'items', item.id), { status: 'claimed' });
+            await updateDoc(doc(db, 'items', item.id), { status: 'claimed', updatedAt: serverTimestamp() });
             router.replace('/(admin)/(tabs)/scan');
           } catch { Alert.alert('Error', 'Gagal menyetujui klaim'); }
           finally { setLoading(false); }
@@ -113,6 +114,7 @@ export default function AdminItemDetail() {
               claimedAt: null,
               completedAt: null,
               claimProof: null,
+              updatedAt: serverTimestamp(),
               ...(isClaimRejection ? { rejectedClaimers: arrayUnion(item.claimedBy!.uid) } : {}),
             });
           } catch { Alert.alert('Error', 'Gagal update status'); }
