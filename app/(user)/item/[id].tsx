@@ -55,6 +55,7 @@ export default function ItemDetailScreen() {
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const lightboxRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -157,6 +158,7 @@ export default function ItemDetailScreen() {
         createdAt: serverTimestamp(),
       });
       setCommentText('');
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       Alert.alert('Error', 'Gagal mengirim komentar');
     } finally {
@@ -178,11 +180,12 @@ export default function ItemDetailScreen() {
   const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <View style={{ flex: 1 }}>
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: item.status === 'available' ? bottomInset + 90 : bottomInset + 24 }}>
+        contentContainerStyle={{ paddingBottom: item.status === 'available' ? bottomInset + 110 : bottomInset + 24 }}>
         {/* Images — swipe carousel */}
         {item.images?.length > 0 ? (
           <View>
@@ -414,26 +417,29 @@ export default function ItemDetailScreen() {
 
       {/* Comment Input — only when available */}
       {item.status === 'available' && (
-        <View style={[styles.commentInputArea, { paddingBottom: bottomInset + 12 }]}>
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Tulis komentar..."
-            placeholderTextColor={APP_COLORS.textLight}
-            value={commentText}
-            onChangeText={setCommentText}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!commentText.trim() || loadingComment) && { opacity: 0.5 }]}
-            onPress={handleSendComment}
-            disabled={!commentText.trim() || loadingComment}>
-            {loadingComment ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="send" size={18} color="#fff" />
-            )}
-          </TouchableOpacity>
-        </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[styles.commentInputArea, { paddingBottom: bottomInset + 12 }]}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Tulis komentar..."
+              placeholderTextColor={APP_COLORS.textLight}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, (!commentText.trim() || loadingComment) && { opacity: 0.5 }]}
+              onPress={handleSendComment}
+              disabled={!commentText.trim() || loadingComment}>
+              {loadingComment ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={18} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       )}
 
       {/* Lightbox Modal */}
@@ -522,7 +528,7 @@ export default function ItemDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
