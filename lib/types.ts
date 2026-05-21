@@ -10,6 +10,8 @@ export interface UserProfile {
   role: UserRole;
   createdAt: Timestamp;
   photoURL?: string;
+  expoPushToken?: string;
+  notificationsEnabled?: boolean;
 }
 
 export type ItemStatus = 'pending' | 'available' | 'claim_pending' | 'claimed' | 'completed';

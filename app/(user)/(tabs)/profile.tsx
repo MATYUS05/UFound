@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
@@ -26,6 +27,8 @@ export default function ProfileScreen() {
   const [name, setName] = useState(profile?.name ?? '');
   const [nim, setNim] = useState(profile?.nim ?? '');
   const [saving, setSaving] = useState(false);
+  const [togglingNotif, setTogglingNotif] = useState(false);
+  const notificationsEnabled = profile?.notificationsEnabled !== false;
 
   const handleSave = async () => {
     if (!name.trim() || !nim.trim()) {
@@ -45,6 +48,19 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Gagal menyimpan profil');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleNotifications = async (value: boolean) => {
+    if (!profile) return;
+    setTogglingNotif(true);
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), { notificationsEnabled: value });
+      await refreshProfile();
+    } catch {
+      Alert.alert('Error', 'Gagal mengubah pengaturan notifikasi');
+    } finally {
+      setTogglingNotif(false);
     }
   };
 
@@ -154,6 +170,27 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Notifications */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Pengaturan</Text>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="notifications-outline" size={20} color={APP_COLORS.primary} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={styles.settingLabel}>Notifikasi</Text>
+                <Text style={styles.settingDesc}>Terima notifikasi saat laporan atau klaim disetujui</Text>
+              </View>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleToggleNotifications}
+              disabled={togglingNotif}
+              trackColor={{ false: APP_COLORS.border, true: APP_COLORS.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color={APP_COLORS.error} />
@@ -225,6 +262,15 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textMuted },
   saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: APP_COLORS.primary, alignItems: 'center' },
   saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  settingLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
+  settingLabel: { fontSize: 14, fontWeight: '600', color: APP_COLORS.text },
+  settingDesc: { fontSize: 12, color: APP_COLORS.textMuted, marginTop: 2 },
   logoutBtn: {
     flexDirection: 'row',
     justifyContent: 'center',

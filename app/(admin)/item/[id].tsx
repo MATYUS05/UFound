@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import OSMMap from '@/components/OSMMap';
 import { db } from '@/lib/firebase';
 import { Item, CATEGORIES, APP_COLORS } from '@/lib/types';
+import { sendPushNotification } from '@/lib/notifications';
 import { formatFull, format } from '@/lib/dateUtils';
 
 export default function AdminItemDetail() {
@@ -56,6 +57,11 @@ export default function AdminItemDetail() {
               approvedAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             });
+            sendPushNotification(
+              item.foundBy.uid,
+              'Laporan Disetujui ✅',
+              `Barang "${item.title}" kamu telah disetujui dan dipublikasikan!`
+            );
           } catch { Alert.alert('Error', 'Gagal menyetujui laporan'); }
           finally { setLoading(false); }
         },
@@ -90,6 +96,11 @@ export default function AdminItemDetail() {
           setLoading(true);
           try {
             await updateDoc(doc(db, 'items', item.id), { status: 'claimed', updatedAt: serverTimestamp() });
+            sendPushNotification(
+              item.claimedBy!.uid,
+              'Klaim Disetujui ✅',
+              `Klaim barang "${item.title}" telah disetujui. Tunjukkan QR code ke admin untuk mengambil barang.`
+            );
             router.replace('/(admin)/(tabs)/scan');
           } catch { Alert.alert('Error', 'Gagal menyetujui klaim'); }
           finally { setLoading(false); }
