@@ -156,10 +156,15 @@ export default function ItemDetailScreen() {
 
   const handleShare = async () => {
     if (!item) return;
-    const deepLink = `ufound://item/${item.id}`;
-    const message = `🔍 Barang Temuan: ${item.title}\n📍 ${item.location?.address}\n🏷 ${item.category}\n\nBuka di UFound: ${deepLink}`;
+    const message =
+      `📢 *Barang Temuan di UMN*\n\n` +
+      `📦 *${item.title}*\n` +
+      `🏷 Kategori: ${item.category}\n` +
+      `📍 Lokasi: ${item.location?.address || '-'}\n` +
+      `👤 Penemu: ${item.foundBy?.name || '-'}\n\n` +
+      `Cari barang ini di aplikasi *UFound* → Temuan → "${item.title}"`;
     try {
-      await Share.share({ message, title: item.title });
+      await Share.share({ message, title: `Barang Temuan: ${item.title}` });
     } catch {}
   };
 
@@ -306,8 +311,8 @@ export default function ItemDetailScreen() {
             </View>
           )}
 
-          {/* LOCATION MAP */}
-          {item.location?.latitude && (
+          {/* LOCATION MAP — hanya saat selesai */}
+          {item.location?.latitude && item.status === 'completed' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Lokasi Ditemukan</Text>
               <View style={styles.locationAddressRow}>

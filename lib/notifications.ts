@@ -13,6 +13,9 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerForPushNotificationsAsync(uid: string): Promise<void> {
+  // Push notifications tidak didukung di Expo Go SDK 53+, hanya di production build
+  if (Constants.executionEnvironment === 'storeClient') return;
+
   try {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
