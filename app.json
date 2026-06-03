@@ -36,6 +36,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withAdiRegistration",
       "expo-router",
       [
         "expo-notifications",
