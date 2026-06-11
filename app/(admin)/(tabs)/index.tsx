@@ -1,3 +1,9 @@
+/**
+ * app/(admin)/(tabs)/index.tsx — Dashboard Admin
+ * Menampilkan ringkasan statistik seluruh barang (total, per status),
+ * breakdown per kategori dengan progress bar, dan 5 laporan terbaru.
+ * Semua data di-sync real-time dari Firestore.
+ */
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
@@ -40,6 +46,7 @@ export default function AdminDashboard() {
     return unsub;
   }, []);
 
+  // Statistik dihitung dari data lokal yang sudah di-sync; tidak perlu query agregasi Firestore
   const stats = {
     total: items.length,
     pending: items.filter((i) => i.status === 'pending').length,
@@ -48,6 +55,7 @@ export default function AdminDashboard() {
     completed: items.filter((i) => i.status === 'completed').length,
   };
 
+  // Hanya menampilkan 5 item terbaru di dashboard; untuk lengkap gunakan tab Kelola Barang
   const recent = items.slice(0, 5);
 
   return (
@@ -150,6 +158,7 @@ export default function AdminDashboard() {
   );
 }
 
+/** Mengubah nilai status internal menjadi label bahasa Indonesia untuk tampilan */
 function statusLabel(s: string) {
   return s === 'pending' ? 'Menunggu' :
     s === 'available' ? 'Tersedia' :

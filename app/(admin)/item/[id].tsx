@@ -1,3 +1,9 @@
+/**
+ * app/(admin)/item/[id].tsx — Detail Barang (Admin)
+ * Admin dapat: menyetujui/menolak laporan, menyetujui/menolak klaim user,
+ * dan menghapus item. Setiap aksi admin mengirim push notification ke user terkait.
+ * Status alur: pending → available → claim_pending → claimed → (scan QR) → completed
+ */
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -43,6 +49,7 @@ export default function AdminItemDetail() {
     return unsub;
   }, [id]);
 
+  /** Menyetujui laporan: status 'pending' → 'available', lalu notif ke penemu */
   const handleApprove = () => {
     if (!item) return;
     Alert.alert('Setujui Laporan', 'Barang akan dipublikasikan ke halaman utama?', [
@@ -69,6 +76,7 @@ export default function AdminItemDetail() {
     ]);
   };
 
+  /** Menolak laporan: menghapus dokumen item dari Firestore sepenuhnya */
   const handleReject = () => {
     if (!item) return;
     Alert.alert('Tolak Laporan', 'Laporan akan dihapus dari sistem?', [
@@ -86,6 +94,10 @@ export default function AdminItemDetail() {
     ]);
   };
 
+  /**
+   * Menyetujui klaim: status 'claim_pending' → 'claimed', kirim notif ke pengklaim,
+   * lalu arahkan admin ke halaman scan QR untuk konfirmasi pengambilan fisik.
+   */
   const handleApproveClaim = () => {
     if (!item) return;
     Alert.alert('Setujui Klaim', 'Setujui klaim dan arahkan ke halaman scan QR?', [
@@ -109,6 +121,11 @@ export default function AdminItemDetail() {
     ]);
   };
 
+  /**
+   * Menolak klaim atau membatalkan status 'claimed': status kembali ke 'available'.
+   * Jika menolak dari 'claim_pending', UID pengklaim ditambahkan ke rejectedClaimers
+   * sehingga user tersebut tidak bisa mengajukan klaim ulang untuk barang yang sama.
+   */
   const handleSetAvailable = async () => {
     if (!item) return;
     Alert.alert('Ubah Status', 'Set barang menjadi Tersedia (batalkan klaim)?', [

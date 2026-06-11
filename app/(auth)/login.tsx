@@ -1,3 +1,10 @@
+/**
+ * app/(auth)/login.tsx — Halaman Login
+ * Menangani autentikasi email/password via Firebase Auth.
+ * Dilengkapi mekanisme perlindungan brute-force: akun dikunci 5 menit
+ * setelah 5 kali percobaan login gagal. Status kunci disimpan di AsyncStorage
+ * agar tetap berlaku meskipun aplikasi ditutup dan dibuka kembali.
+ */
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -19,8 +26,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/lib/firebase';
 import { APP_COLORS } from '@/lib/types';
 
+// Batas percobaan login sebelum akun dikunci sementara
 const MAX_ATTEMPTS = 5;
+// Durasi penguncian akun setelah melebihi batas percobaan (dalam milidetik)
 const LOCKOUT_MS = 5 * 60 * 1000; // 5 menit
+// Key AsyncStorage untuk persistensi data lockout lintas sesi aplikasi
 const KEY_ATTEMPTS = '@ufound_login_attempts';
 const KEY_LOCKOUT = '@ufound_lockout_until';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -82,6 +92,10 @@ export default function LoginScreen() {
     return `${m}:${s}`;
   };
 
+  /**
+   * Menangani proses login: validasi input → Firebase Auth → update counter gagal.
+   * Jika percobaan gagal mencapai MAX_ATTEMPTS, akun dikunci dan timer countdown dimulai.
+   */
   const handleLogin = async () => {
     if (isLocked) return;
 

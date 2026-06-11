@@ -1,3 +1,9 @@
+/**
+ * app/(user)/(tabs)/profile.tsx — Halaman Profil Pengguna
+ * Menampilkan informasi akun, tombol edit nama/NIM, toggle notifikasi push,
+ * dan tombol logout. Perubahan profil langsung diperbarui ke Firestore dan
+ * di-refresh ke AuthContext tanpa perlu re-login.
+ */
 import { useState } from 'react';
 import {
   View,
@@ -30,6 +36,7 @@ export default function ProfileScreen() {
   const [togglingNotif, setTogglingNotif] = useState(false);
   const notificationsEnabled = profile?.notificationsEnabled !== false;
 
+  /** Menyimpan perubahan nama dan NIM ke Firestore lalu memperbarui AuthContext */
   const handleSave = async () => {
     if (!name.trim() || !nim.trim()) {
       Alert.alert('Error', 'Nama dan NIM tidak boleh kosong');
@@ -51,6 +58,7 @@ export default function ProfileScreen() {
     }
   };
 
+  /** Mengubah preferensi notifikasi push di Firestore; sendPushNotification akan mengecek field ini */
   const handleToggleNotifications = async (value: boolean) => {
     if (!profile) return;
     setTogglingNotif(true);
@@ -78,6 +86,7 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // Inisial nama untuk avatar; fallback ke 'U' jika profil belum dimuat
   const avatarLetter = (profile?.name ?? 'U')[0].toUpperCase();
 
   return (

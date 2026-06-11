@@ -1,3 +1,9 @@
+/**
+ * app/(user)/(tabs)/index.tsx — Halaman Utama (Feed Barang Temuan)
+ * Menampilkan daftar barang temuan yang sudah disetujui admin (status != 'pending').
+ * Fitur: real-time sync Firestore, pagination lazy-load, filter waktu, dan
+ * modal pencarian dengan filter kategori + waktu secara bersamaan.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -21,6 +27,7 @@ import { Item, CATEGORIES, APP_COLORS, ItemStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from '@/lib/dateUtils';
 
+/** Label bahasa Indonesia untuk setiap status item */
 const STATUS_LABELS: Record<ItemStatus, string> = {
   pending: 'Menunggu',
   available: 'Tersedia',
@@ -47,8 +54,10 @@ const STATUS_COLORS: Record<ItemStatus, string> = {
   completed: APP_COLORS.statusCompleted,
 };
 
+// Jumlah item per halaman; pageSize ditambah PAGE_SIZE setiap kali onEndReached dipicu
 const PAGE_SIZE = 10;
 
+/** Opsi filter waktu: [nilai internal, label tampilan] */
 const TIME_FILTERS: [string, string][] = [
   ['', 'Semua'],
   ['today', 'Hari Ini'],
@@ -56,6 +65,13 @@ const TIME_FILTERS: [string, string][] = [
   ['month', 'Bulan Ini'],
 ];
 
+/**
+ * Menyaring daftar item berdasarkan filter waktu yang dipilih user.
+ * Perbandingan dilakukan berdasarkan field createdAt setiap item.
+ *
+ * @param items - Daftar item yang akan difilter
+ * @param time  - Nilai filter: '' (semua), 'today', 'week', atau 'month'
+ */
 function applyTimeFilter(items: Item[], time: string): Item[] {
   if (!time) return items;
   const now = new Date();
@@ -91,6 +107,8 @@ export default function HomeScreen() {
   const [searchFilterTime, setSearchFilterTime] = useState('');
   const [searchFilterCategory, setSearchFilterCategory] = useState('');
 
+  // Listener real-time Firestore; di-refresh saat pageSize bertambah (lazy load)
+  // Item berstatus 'pending' disembunyikan dari user — hanya admin yang bisa melihatnya
   useEffect(() => {
     const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'), limit(pageSize));
     return onSnapshot(q, (snap) => {
@@ -109,6 +127,7 @@ export default function HomeScreen() {
     setFiltered(applyTimeFilter(items, selectedTime));
   }, [items, selectedTime]);
 
+  // Hasil pencarian dihitung ulang setiap kali query, filter waktu, atau kategori berubah
   const searchResults = useMemo(() => {
     let result = [...items];
     if (searchQuery.trim()) {

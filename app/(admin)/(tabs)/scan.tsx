@@ -1,3 +1,9 @@
+/**
+ * app/(admin)/(tabs)/scan.tsx — Halaman Scan QR & Konfirmasi Pengambilan
+ * Admin scan QR code yang ditampilkan di layar pengklaim untuk memverifikasi pengambilan.
+ * QR code berisi itemId; sistem mengecek status barang harus 'claimed' sebelum konfirmasi.
+ * Setelah dikonfirmasi, status barang berubah menjadi 'completed' dan muncul di history.
+ */
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -49,6 +55,11 @@ export default function AdminScanScreen() {
     });
   }, []);
 
+  /**
+   * Dipanggil saat kamera mendeteksi barcode/QR code.
+   * data berisi itemId dari Firestore; dicek statusnya sebelum menampilkan modal konfirmasi.
+   * Guard 'scanned' mencegah handler dipanggil berulang sebelum user memilih aksi.
+   */
   const handleBarcodeScan = async (data: string) => {
     if (scanned) return;
     setScanned(true);
@@ -81,6 +92,7 @@ export default function AdminScanScreen() {
     }
   };
 
+  /** Mengubah status item menjadi 'completed' dan mencatat completedAt di Firestore */
   const handleConfirm = async () => {
     if (!scannedItem) return;
     setConfirmLoading(true);

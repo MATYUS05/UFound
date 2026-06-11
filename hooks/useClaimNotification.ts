@@ -1,3 +1,9 @@
+/**
+ * useClaimNotification.ts
+ * Custom hook yang memantau perubahan status klaim secara real-time pada barang
+ * milik user yang sedang login. Mendeteksi saat klaim baru disetujui admin dan
+ * mengekspos data notifikasi untuk ditampilkan di ClaimNotificationBanner.
+ */
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -9,9 +15,18 @@ export interface ClaimNotification {
   claimerName: string;
 }
 
+/**
+ * Memantau semua barang milik user login dan men-trigger notifikasi
+ * saat ada perubahan status menjadi 'claimed' (klaim baru disetujui admin).
+ *
+ * @returns notification - Data klaim terbaru, null jika tidak ada
+ * @returns dismissNotification - Fungsi untuk menutup banner notifikasi
+ */
 export function useClaimNotification() {
   const { profile } = useAuth();
   const [notification, setNotification] = useState<ClaimNotification | null>(null);
+  // Menyimpan status terakhir setiap item; menggunakan ref (bukan state) agar update
+  // cache tidak menyebabkan re-render. Map<itemId, status>
   const prevStatusMap = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {

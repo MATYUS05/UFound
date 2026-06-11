@@ -1,3 +1,9 @@
+/**
+ * app/(user)/item/[id].tsx — Halaman Detail Barang (User)
+ * Menampilkan detail lengkap barang temuan: foto carousel, peta lokasi, komentar,
+ * dan tombol aksi sesuai status (klaim, batalkan klaim, lihat QR untuk pengambilan).
+ * QR code yang ditampilkan berisi itemId dan digunakan admin untuk konfirmasi pickup.
+ */
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -97,6 +103,10 @@ export default function ItemDetailScreen() {
     setShowClaimForm(true);
   };
 
+  /**
+   * Mengirim pengajuan klaim: mengisi claimProof (lokasi + deskripsi kehilangan)
+   * dan mengubah status item menjadi 'claim_pending' untuk ditinjau admin.
+   */
   const confirmClaim = async () => {
     if (!item || !profile) return;
     if (!claimLocation.trim()) {
@@ -154,6 +164,7 @@ export default function ItemDetailScreen() {
     ]);
   };
 
+  /** Membagikan info barang temuan ke aplikasi lain (WhatsApp, dll.) via native Share API */
   const handleShare = async () => {
     if (!item) return;
     const message =
@@ -168,6 +179,7 @@ export default function ItemDetailScreen() {
     } catch {}
   };
 
+  /** Menambahkan komentar baru ke koleksi Firestore 'comments' lalu scroll ke bawah */
   const handleSendComment = async () => {
     if (!commentText.trim() || !profile || !id) return;
     setLoadingComment(true);
@@ -197,8 +209,10 @@ export default function ItemDetailScreen() {
     );
   }
 
+  // Flag untuk menentukan tombol aksi mana yang ditampilkan
   const isMyClaimedItem = item.status === 'claimed' && item.claimedBy?.uid === profile?.uid;
   const isMyPendingClaim = item.status === 'claim_pending' && item.claimedBy?.uid === profile?.uid;
+  // User yang pernah ditolak klaimnya tidak bisa klaim ulang barang yang sama
   const hasBeenRejected = !!profile?.uid && (item.rejectedClaimers?.includes(profile.uid) ?? false);
   const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
 

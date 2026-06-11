@@ -1,9 +1,18 @@
+/**
+ * app/index.tsx — Splash Screen UFound
+ * Menampilkan animasi pembuka (logo, nama app, loading dots) selama Firebase Auth
+ * mengecek sesi login. Setelah animasi selesai dan auth siap, user diarahkan ke:
+ *  - /(auth)/login   → jika belum login
+ *  - /(admin)/(tabs) → jika role 'admin'
+ *  - /(user)/(tabs)  → jika role 'user'
+ */
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { APP_COLORS } from '@/lib/types';
 
+/** Titik loading yang bergerak naik-turun dengan delay berbeda untuk efek bergelombang */
 function LoadingDot({ delay }: { delay: number }) {
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -36,6 +45,7 @@ export default function Index() {
   const screenOpacity = useRef(new Animated.Value(1)).current;
   const dotsOpacity  = useRef(new Animated.Value(0)).current;
 
+  // Flag bahwa seluruh sequence animasi pembuka sudah selesai
   const [animDone, setAnimDone] = useState(false);
 
   useEffect(() => {
@@ -84,6 +94,7 @@ export default function Index() {
     ]).start(() => setAnimDone(true));
   }, []);
 
+  // Navigasi dilakukan setelah animasi SELESAI dan auth state SIAP (keduanya harus terpenuhi)
   useEffect(() => {
     if (!animDone || loading) return;
 

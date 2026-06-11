@@ -1,9 +1,15 @@
+/**
+ * notifications.ts
+ * Konfigurasi dan helper untuk push notification menggunakan Expo Notifications.
+ * Token Expo Push disimpan di dokumen Firestore user agar bisa dikirim dari mana saja.
+ */
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+// Konfigurasi global: notifikasi selalu tampil sebagai alert (termasuk saat app sedang foreground)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -12,6 +18,12 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/**
+ * Mendaftarkan perangkat untuk menerima push notification dan menyimpan token ke Firestore.
+ * Membuat Android notification channel dengan prioritas MAX agar notif selalu muncul.
+ *
+ * @param uid - UID Firebase Auth pengguna yang sedang login
+ */
 export async function registerForPushNotificationsAsync(uid: string): Promise<void> {
   // Push notifications tidak didukung di Expo Go SDK 53+, hanya di production build
   if (Constants.executionEnvironment === 'storeClient') return;
@@ -40,6 +52,14 @@ export async function registerForPushNotificationsAsync(uid: string): Promise<vo
   } catch {}
 }
 
+/**
+ * Mengirim push notification ke pengguna tertentu melalui Expo Push API.
+ * Tidak akan mengirim jika user menonaktifkan notifikasi atau belum punya token.
+ *
+ * @param toUid - UID penerima notifikasi
+ * @param title - Judul notifikasi
+ * @param body  - Isi pesan notifikasi
+ */
 export async function sendPushNotification(
   toUid: string,
   title: string,

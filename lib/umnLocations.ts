@@ -1,9 +1,17 @@
+/**
+ * umnLocations.ts
+ * Koordinat GPS lokasi-lokasi di kampus Universitas Multimedia Nusantara (UMN).
+ * Digunakan sebagai preset lokasi di form laporan barang agar user tidak perlu mengetik manual.
+ */
+
+/** Titik pusat kampus UMN, digunakan sebagai fallback koordinat peta */
 export const UMN_CENTER = {
   latitude: -6.2567,
   longitude: 106.6182,
   address: 'Universitas Multimedia Nusantara, Gading Serpong, Tangerang',
 };
 
+/** Daftar lokasi spesifik di kampus UMN beserta koordinat GPS-nya */
 export const UMN_LOCATIONS = [
   { id: 'umn_main', label: 'Gedung Utama', latitude: -6.2567, longitude: 106.6182 },
   { id: 'umn_b', label: 'Gedung B', latitude: -6.2566495, longitude: 106.6183551 },

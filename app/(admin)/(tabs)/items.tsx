@@ -1,3 +1,9 @@
+/**
+ * app/(admin)/(tabs)/items.tsx — Halaman Kelola Barang (Admin)
+ * Menampilkan semua barang dari semua status dengan filter status, pencarian teks,
+ * dan filter kategori. Admin dapat menghapus barang dari sini kecuali yang sudah 'completed'.
+ * Data di-sort berdasarkan updatedAt agar perubahan terbaru muncul paling atas.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -47,6 +53,8 @@ export default function AdminItemsScreen() {
   const [searchFilterStatus, setSearchFilterStatus] = useState<Filter>('');
   const [searchFilterCategory, setSearchFilterCategory] = useState('');
 
+  // Firestore hanya bisa orderBy satu field; sort ulang di klien berdasarkan updatedAt
+  // agar barang yang baru diproses admin naik ke atas meski createdAt-nya lama
   useEffect(() => {
     const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'), limit(pageSize));
     return onSnapshot(q, (snap) => {
@@ -103,6 +111,7 @@ export default function AdminItemsScreen() {
     setSearchQuery('');
   };
 
+  /** Menghapus dokumen item dari Firestore setelah konfirmasi alert */
   const handleDelete = useCallback((item: Item) => {
     Alert.alert('Hapus Barang', `Yakin hapus "${item.title}"?`, [
       { text: 'Batal', style: 'cancel' },

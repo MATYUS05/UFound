@@ -1,5 +1,17 @@
+/**
+ * dateUtils.ts
+ * Helper untuk memformat Firestore Timestamp menjadi string tanggal relatif atau lengkap.
+ * Mendukung dua format: relatif ("5 menit lalu") dan absolut (tanggal lengkap).
+ */
 import { Timestamp } from 'firebase/firestore';
 
+/**
+ * Mengubah Timestamp menjadi string waktu relatif dalam Bahasa Indonesia.
+ * Contoh: "Baru saja", "5 menit lalu", "2 jam lalu", "3 hari lalu", atau tanggal lengkap.
+ *
+ * @param ts - Firestore Timestamp atau null/undefined
+ * @returns String waktu relatif, atau string kosong jika ts tidak valid
+ */
 export function format(ts: Timestamp | undefined | null): string {
   if (!ts) return '';
   const date = ts.toDate ? ts.toDate() : new Date(ts as any);
@@ -15,6 +27,13 @@ export function format(ts: Timestamp | undefined | null): string {
   return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/**
+ * Mengubah Timestamp menjadi string tanggal dan waktu lengkap dalam Bahasa Indonesia.
+ * Contoh: "11 Juni 2026 pukul 14.30"
+ *
+ * @param ts - Firestore Timestamp atau null/undefined
+ * @returns String tanggal lengkap, atau '-' jika ts tidak valid
+ */
 export function formatFull(ts: Timestamp | undefined | null): string {
   if (!ts) return '-';
   const date = ts.toDate ? ts.toDate() : new Date(ts as any);

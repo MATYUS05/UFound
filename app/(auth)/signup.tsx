@@ -1,3 +1,8 @@
+/**
+ * app/(auth)/signup.tsx — Halaman Pendaftaran Akun
+ * Membuat akun Firebase Auth (email/password) dan dokumen profil di Firestore.
+ * Role default semua akun baru adalah 'user'; admin hanya bisa dibuat manual di Firestore.
+ */
 import { useState } from 'react';
 import {
   View,
@@ -30,6 +35,10 @@ export default function SignupScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Membuat akun baru: validasi input → Firebase Auth → simpan profil ke Firestore.
+   * Data profil (name, nim, email, role) disimpan di koleksi 'users' dengan UID sebagai ID dokumen.
+   */
   const handleSignup = async () => {
     if (!name.trim() || !nim.trim() || !email.trim() || !password || !confirmPassword) {
       Alert.alert('Error', 'Semua kolom harus diisi');

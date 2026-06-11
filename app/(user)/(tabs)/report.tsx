@@ -1,3 +1,10 @@
+/**
+ * app/(user)/(tabs)/report.tsx — Halaman Laporan Barang Temuan
+ * User dapat melaporkan barang temuan dengan mengisi form: foto (maks. 3),
+ * nama barang, kategori, deskripsi, dan lokasi (preset kampus atau GPS otomatis).
+ * Foto diupload ke Cloudinary; data barang disimpan ke Firestore dengan status 'pending'
+ * untuk menunggu persetujuan admin sebelum tampil di feed publik.
+ */
 import { useState } from 'react';
 import {
   View,
@@ -34,6 +41,7 @@ export default function ReportScreen() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  /** Membuka galeri untuk memilih foto; maks. 3 foto total termasuk yang sudah dipilih */
   const pickFromGallery = async () => {
     if (images.length >= 3) { Alert.alert('Maks. 3 foto'); return; }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -49,6 +57,7 @@ export default function ReportScreen() {
     }
   };
 
+  /** Membuka kamera untuk mengambil foto langsung dari perangkat */
   const takePhoto = async () => {
     if (images.length >= 3) { Alert.alert('Maks. 3 foto'); return; }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -71,6 +80,10 @@ export default function ReportScreen() {
     ]);
   };
 
+  /**
+   * Mengambil koordinat GPS perangkat dan melakukan reverse geocoding
+   * via OpenStreetMap Nominatim API untuk mendapatkan alamat teks.
+   */
   const getLocation = async () => {
     setLoadingLocation(true);
     try {
@@ -94,6 +107,11 @@ export default function ReportScreen() {
     }
   };
 
+  /**
+   * Mengirim laporan barang: upload semua foto ke Cloudinary secara berurutan,
+   * lalu simpan dokumen item ke Firestore dengan status 'pending'.
+   * Gambar yang bukan URL HTTP dibuang sebelum disimpan (safety check).
+   */
   const handleSubmit = async () => {
     if (!title.trim()) { Alert.alert('Error', 'Judul harus diisi'); return; }
     if (!category) { Alert.alert('Error', 'Pilih kategori barang'); return; }
