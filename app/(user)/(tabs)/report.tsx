@@ -1,3 +1,10 @@
+/**
+ * app/(user)/(tabs)/report.tsx — Halaman Laporan Barang Temuan
+ * User dapat melaporkan barang temuan dengan mengisi form: foto (maks. 3),
+ * nama barang, kategori, deskripsi, dan lokasi (preset kampus atau GPS otomatis).
+ * Foto diupload ke Cloudinary; data barang disimpan ke Firestore dengan status 'pending'
+ * untuk menunggu persetujuan admin sebelum tampil di feed publik.
+ */
 import { useState } from 'react';
 import {
   View,
@@ -19,7 +26,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, uploadImageToCloudinary } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { CATEGORIES, APP_COLORS } from '@/lib/types';
-import { UMN_CENTER, UMN_LOCATIONS } from '@/lib/umnLocations';
+import { UMN_LOCATIONS } from '@/lib/umnLocations';
 import OSMMap from '@/components/OSMMap';
 
 export default function ReportScreen() {
@@ -34,6 +41,7 @@ export default function ReportScreen() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  /** Membuka galeri untuk memilih foto; maks. 3 foto total termasuk yang sudah dipilih */
   const pickFromGallery = async () => {
     if (images.length >= 3) { Alert.alert('Maks. 3 foto'); return; }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -49,6 +57,7 @@ export default function ReportScreen() {
     }
   };
 
+  /** Membuka kamera untuk mengambil foto langsung dari perangkat */
   const takePhoto = async () => {
     if (images.length >= 3) { Alert.alert('Maks. 3 foto'); return; }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -71,17 +80,25 @@ export default function ReportScreen() {
     ]);
   };
 
+  /**
+   * Mengambil koordinat GPS perangkat dan melakukan reverse geocoding
+   * via OpenStreetMap Nominatim API untuk mendapatkan alamat teks.
+   */
   const getLocation = async () => {
     setLoadingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') { Alert.alert('Izin diperlukan', 'Izinkan akses lokasi'); return; }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const geocode = await Location.reverseGeocodeAsync(loc.coords);
-      const addr = geocode[0];
-      const address = [addr.street, addr.district, addr.city, addr.region]
-        .filter(Boolean)
-        .join(', ');
+      let address = `${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`;
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${loc.coords.latitude}&lon=${loc.coords.longitude}&format=json&accept-language=id`,
+          { headers: { 'User-Agent': 'UFound-App/1.0' } }
+        );
+        const json = await res.json();
+        if (json.display_name) address = json.display_name;
+      } catch {}
       setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude, address });
     } catch {
       Alert.alert('Error', 'Gagal mendapatkan lokasi');
@@ -90,6 +107,11 @@ export default function ReportScreen() {
     }
   };
 
+  /**
+   * Mengirim laporan barang: upload semua foto ke Cloudinary secara berurutan,
+   * lalu simpan dokumen item ke Firestore dengan status 'pending'.
+   * Gambar yang bukan URL HTTP dibuang sebelum disimpan (safety check).
+   */
   const handleSubmit = async () => {
     if (!title.trim()) { Alert.alert('Error', 'Judul harus diisi'); return; }
     if (!category) { Alert.alert('Error', 'Pilih kategori barang'); return; }
@@ -113,12 +135,13 @@ export default function ReportScreen() {
         foundBy: { uid: profile.uid, name: profile.name, nim: profile.nim },
         status: 'pending',
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       const reset = () => { setTitle(''); setDescription(''); setCategory(''); setImages([]); setLocation(null); };
       Alert.alert('Berhasil', 'Laporan barang temuan berhasil dikirim. Ingin membuat laporan lain?', [
         { text: 'Ya, Buat Lagi', onPress: reset },
-        { text: 'Tidak', onPress: () => { reset(); router.replace('/(user)/(tabs)'); } },
+        { text: 'Tidak', onPress: () => { reset(); router.replace('/(user)/(tabs)/activity?tab=found'); } },
       ]);
     } catch (err) {
       Alert.alert('Error', 'Gagal menyimpan laporan. Coba lagi.');
@@ -199,15 +222,26 @@ export default function ReportScreen() {
         {/* Description */}
         <Text style={styles.sectionLabel}>Deskripsi</Text>
         <TextInput
-          style={[styles.input, styles.textarea]}
+          style={[styles.input, styles.textarea, { marginBottom: 4 }]}
           placeholder="Ciri-ciri, warna, kondisi barang..."
           placeholderTextColor={APP_COLORS.textLight}
           value={description}
-          onChangeText={setDescription}
+          onChangeText={(text) => {
+            if (text.replace(/\s/g, '').length <= 2000) setDescription(text);
+          }}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
         />
+        <View style={styles.charCountRow}>
+          <Text style={[
+            styles.charCount,
+            description.replace(/\s/g, '').length > 1800 && styles.charCountWarn,
+            description.replace(/\s/g, '').length >= 2000 && styles.charCountMax,
+          ]}>
+            {description.replace(/\s/g, '').length}/2000
+          </Text>
+        </View>
 
         {/* Location */}
         <Text style={styles.sectionLabel}>Lokasi Ditemukan *</Text>
@@ -414,4 +448,8 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.7 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  charCountRow: { alignItems: 'flex-end', marginBottom: 16 },
+  charCount: { fontSize: 11, color: APP_COLORS.textMuted },
+  charCountWarn: { color: APP_COLORS.warning },
+  charCountMax: { color: APP_COLORS.error },
 });

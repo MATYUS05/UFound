@@ -1,3 +1,9 @@
+/**
+ * app/(user)/item/[id].tsx — Halaman Detail Barang (User)
+ * Menampilkan detail lengkap barang temuan: foto carousel, peta lokasi, komentar,
+ * dan tombol aksi sesuai status (klaim, batalkan klaim, lihat QR untuk pengambilan).
+ * QR code yang ditampilkan berisi itemId dan digunakan admin untuk konfirmasi pickup.
+ */
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -11,11 +17,12 @@ import {
   ActivityIndicator,
   Share,
   Platform,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   useWindowDimensions,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   doc,
@@ -39,6 +46,7 @@ import { formatFull, format } from '@/lib/dateUtils';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { profile } = useAuth();
   const { top: safeTop, bottom } = useSafeAreaInsets();
   const bottomInset = Math.max(bottom, 20);
@@ -55,6 +63,19 @@ export default function ItemDetailScreen() {
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const lightboxRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -82,6 +103,10 @@ export default function ItemDetailScreen() {
     setShowClaimForm(true);
   };
 
+  /**
+   * Mengirim pengajuan klaim: mengisi claimProof (lokasi + deskripsi kehilangan)
+   * dan mengubah status item menjadi 'claim_pending' untuk ditinjau admin.
+   */
   const confirmClaim = async () => {
     if (!item || !profile) return;
     if (!claimLocation.trim()) {
@@ -98,13 +123,16 @@ export default function ItemDetailScreen() {
         status: 'claim_pending',
         claimedBy: { uid: profile.uid, name: profile.name, nim: profile.nim },
         claimedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         claimProof: {
           location: claimLocation.trim(),
           description: claimDescription.trim(),
         },
       });
       setShowClaimForm(false);
-      Alert.alert('Pengajuan Terkirim', 'Klaimmu sedang dalam proses pengajuan. Admin akan meninjau dan menyetujui klaim kamu. Harap menunggu.');
+      Alert.alert('Pengajuan Terkirim', 'Klaimmu sedang dalam proses pengajuan. Admin akan meninjau dan menyetujui klaim kamu. Harap menunggu.', [
+        { text: 'OK', onPress: () => router.replace('/(user)/(tabs)/activity?tab=claimed') },
+      ]);
     } catch {
       Alert.alert('Error', 'Gagal mengklaim barang');
     } finally {
@@ -124,6 +152,7 @@ export default function ItemDetailScreen() {
               status: 'available',
               claimedBy: null,
               claimedAt: null,
+              updatedAt: serverTimestamp(),
             });
           } catch {
             Alert.alert('Error', 'Gagal membatalkan klaim');
@@ -135,15 +164,22 @@ export default function ItemDetailScreen() {
     ]);
   };
 
+  /** Membagikan info barang temuan ke aplikasi lain (WhatsApp, dll.) via native Share API */
   const handleShare = async () => {
     if (!item) return;
-    const deepLink = `ufound://item/${item.id}`;
-    const message = `🔍 Barang Temuan: ${item.title}\n📍 ${item.location?.address}\n🏷 ${item.category}\n\nBuka di UFound: ${deepLink}`;
+    const message =
+      `📢 *Barang Temuan di UMN*\n\n` +
+      `📦 *${item.title}*\n` +
+      `🏷 Kategori: ${item.category}\n` +
+      `📍 Lokasi: ${item.location?.address || '-'}\n` +
+      `👤 Penemu: ${item.foundBy?.name || '-'}\n\n` +
+      `Cari barang ini di aplikasi *UFound* → Temuan → "${item.title}"`;
     try {
-      await Share.share({ message, title: item.title });
+      await Share.share({ message, title: `Barang Temuan: ${item.title}` });
     } catch {}
   };
 
+  /** Menambahkan komentar baru ke koleksi Firestore 'comments' lalu scroll ke bawah */
   const handleSendComment = async () => {
     if (!commentText.trim() || !profile || !id) return;
     setLoadingComment(true);
@@ -157,6 +193,7 @@ export default function ItemDetailScreen() {
         createdAt: serverTimestamp(),
       });
       setCommentText('');
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       Alert.alert('Error', 'Gagal mengirim komentar');
     } finally {
@@ -172,17 +209,21 @@ export default function ItemDetailScreen() {
     );
   }
 
+  // Flag untuk menentukan tombol aksi mana yang ditampilkan
   const isMyClaimedItem = item.status === 'claimed' && item.claimedBy?.uid === profile?.uid;
   const isMyPendingClaim = item.status === 'claim_pending' && item.claimedBy?.uid === profile?.uid;
+  // User yang pernah ditolak klaimnya tidak bisa klaim ulang barang yang sama
   const hasBeenRejected = !!profile?.uid && (item.rejectedClaimers?.includes(profile.uid) ?? false);
   const catIcon = (CATEGORIES.find((c) => c.id === item.category)?.icon ?? 'cube-outline') as any;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, marginBottom: keyboardHeight > 0 ? keyboardHeight + bottomInset : 0 }}>
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: item.status === 'available' ? bottomInset + 90 : bottomInset + 24 }}>
+        contentContainerStyle={{ paddingBottom: item.status === 'available' ? bottomInset + 110 : bottomInset + 24 }}>
         {/* Images — swipe carousel */}
         {item.images?.length > 0 ? (
           <View>
@@ -243,10 +284,6 @@ export default function ItemDetailScreen() {
             <Text style={styles.dateText}>{format(item.createdAt)}</Text>
           </View>
 
-          {item.description ? (
-            <Text style={styles.description}>{item.description}</Text>
-          ) : null}
-
           {/* WHO FOUND */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Yang Menemukan</Text>
@@ -288,7 +325,7 @@ export default function ItemDetailScreen() {
             </View>
           )}
 
-          {/* LOCATION MAP — only visible when completed */}
+          {/* LOCATION MAP — hanya saat selesai */}
           {item.location?.latitude && item.status === 'completed' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Lokasi Ditemukan</Text>
@@ -414,7 +451,7 @@ export default function ItemDetailScreen() {
 
       {/* Comment Input — only when available */}
       {item.status === 'available' && (
-        <View style={[styles.commentInputArea, { paddingBottom: bottomInset + 12 }]}>
+        <View style={[styles.commentInputArea, { paddingBottom: keyboardHeight > 0 ? 12 : bottomInset + 12 }]}>
           <TextInput
             style={styles.commentInput}
             placeholder="Tulis komentar..."
@@ -435,6 +472,7 @@ export default function ItemDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+      </View>
 
       {/* Lightbox Modal */}
       <Modal visible={lightboxVisible} transparent animationType="fade" onRequestClose={() => setLightboxVisible(false)}>
@@ -522,7 +560,7 @@ export default function ItemDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

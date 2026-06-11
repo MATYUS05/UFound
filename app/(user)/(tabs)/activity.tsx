@@ -1,3 +1,9 @@
+/**
+ * app/(user)/(tabs)/activity.tsx — Halaman Aktivitas Saya
+ * Menampilkan dua tab: barang yang USER temukan sendiri, dan barang yang USER klaim.
+ * Barang yang klaim-nya ditolak admin juga muncul di tab "Saya Klaim" dengan badge merah,
+ * menggunakan field rejectedClaimers untuk mendeteksinya.
+ */
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -8,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/lib/firebase';
@@ -20,14 +26,21 @@ type Tab = 'found' | 'claimed';
 
 export default function ActivityScreen() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { profile } = useAuth();
   const { top, bottom } = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<Tab>('found');
+  const [activeTab, setActiveTab] = useState<Tab>(tab === 'claimed' ? 'claimed' : 'found');
+
+  useEffect(() => {
+    if (tab === 'claimed' || tab === 'found') setActiveTab(tab);
+  }, [tab]);
   const [foundItems, setFoundItems] = useState<Item[]>([]);
   const [claimedItems, setClaimedItems] = useState<Item[]>([]);
   const [loadingFound, setLoadingFound] = useState(true);
   const [loadingClaimed, setLoadingClaimed] = useState(true);
 
+  // Satu listener untuk semua item; difilter di sisi klien berdasarkan UID user
+  // claimedItems mencakup barang yang sedang diklaim ATAU pernah ditolak klaimnya
   useEffect(() => {
     if (!profile?.uid) return;
     const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'));

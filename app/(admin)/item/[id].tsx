@@ -1,3 +1,9 @@
+/**
+ * app/(admin)/item/[id].tsx — Detail Barang (Admin)
+ * Admin dapat: menyetujui/menolak laporan, menyetujui/menolak klaim user,
+ * dan menghapus item. Setiap aksi admin mengirim push notification ke user terkait.
+ * Status alur: pending → available → claim_pending → claimed → (scan QR) → completed
+ */
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -19,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import OSMMap from '@/components/OSMMap';
 import { db } from '@/lib/firebase';
 import { Item, CATEGORIES, APP_COLORS } from '@/lib/types';
+import { sendPushNotification } from '@/lib/notifications';
 import { formatFull, format } from '@/lib/dateUtils';
 
 export default function AdminItemDetail() {
@@ -42,6 +49,7 @@ export default function AdminItemDetail() {
     return unsub;
   }, [id]);
 
+  /** Menyetujui laporan: status 'pending' → 'available', lalu notif ke penemu */
   const handleApprove = () => {
     if (!item) return;
     Alert.alert('Setujui Laporan', 'Barang akan dipublikasikan ke halaman utama?', [
@@ -54,7 +62,13 @@ export default function AdminItemDetail() {
             await updateDoc(doc(db, 'items', item.id), {
               status: 'available',
               approvedAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
             });
+            sendPushNotification(
+              item.foundBy.uid,
+              'Laporan Disetujui ✅',
+              `Barang "${item.title}" kamu telah disetujui dan dipublikasikan!`
+            );
           } catch { Alert.alert('Error', 'Gagal menyetujui laporan'); }
           finally { setLoading(false); }
         },
@@ -62,6 +76,7 @@ export default function AdminItemDetail() {
     ]);
   };
 
+  /** Menolak laporan: menghapus dokumen item dari Firestore sepenuhnya */
   const handleReject = () => {
     if (!item) return;
     Alert.alert('Tolak Laporan', 'Laporan akan dihapus dari sistem?', [
@@ -79,6 +94,10 @@ export default function AdminItemDetail() {
     ]);
   };
 
+  /**
+   * Menyetujui klaim: status 'claim_pending' → 'claimed', kirim notif ke pengklaim,
+   * lalu arahkan admin ke halaman scan QR untuk konfirmasi pengambilan fisik.
+   */
   const handleApproveClaim = () => {
     if (!item) return;
     Alert.alert('Setujui Klaim', 'Setujui klaim dan arahkan ke halaman scan QR?', [
@@ -88,7 +107,12 @@ export default function AdminItemDetail() {
         onPress: async () => {
           setLoading(true);
           try {
-            await updateDoc(doc(db, 'items', item.id), { status: 'claimed' });
+            await updateDoc(doc(db, 'items', item.id), { status: 'claimed', updatedAt: serverTimestamp() });
+            sendPushNotification(
+              item.claimedBy!.uid,
+              'Klaim Disetujui ✅',
+              `Klaim barang "${item.title}" telah disetujui. Tunjukkan QR code ke admin untuk mengambil barang.`
+            );
             router.replace('/(admin)/(tabs)/scan');
           } catch { Alert.alert('Error', 'Gagal menyetujui klaim'); }
           finally { setLoading(false); }
@@ -97,6 +121,11 @@ export default function AdminItemDetail() {
     ]);
   };
 
+  /**
+   * Menolak klaim atau membatalkan status 'claimed': status kembali ke 'available'.
+   * Jika menolak dari 'claim_pending', UID pengklaim ditambahkan ke rejectedClaimers
+   * sehingga user tersebut tidak bisa mengajukan klaim ulang untuk barang yang sama.
+   */
   const handleSetAvailable = async () => {
     if (!item) return;
     Alert.alert('Ubah Status', 'Set barang menjadi Tersedia (batalkan klaim)?', [
@@ -113,6 +142,7 @@ export default function AdminItemDetail() {
               claimedAt: null,
               completedAt: null,
               claimProof: null,
+              updatedAt: serverTimestamp(),
               ...(isClaimRejection ? { rejectedClaimers: arrayUnion(item.claimedBy!.uid) } : {}),
             });
           } catch { Alert.alert('Error', 'Gagal update status'); }

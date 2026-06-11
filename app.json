@@ -36,7 +36,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withAdiRegistration",
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#003eb3"
+        }
+      ],
       [
         "expo-splash-screen",
         {
