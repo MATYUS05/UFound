@@ -19,7 +19,8 @@ Aplikasi ini dirancang dan dikembangkan secara kolaboratif oleh:
 ## 🔗 Tautan Penting (Project Links)
 
 * **Repositori GitHub:** [https://github.com/MATYUS05/UFound](https://github.com/MATYUS05/UFound)
-* **Aplikasi Google Play Store:** TBA
+* **APK:** https://drive.google.com/drive/folders/1v5hnZhcIuw5iemz-jA7o3PzpngSHAecb?usp=sharing 
+* **Aplikasi Google Play Store:** https://play.google.com/store/apps/details?id=com.ufound.app 
 
 ## 🛠️ Teknologi yang Digunakan (Tech Stack)
 
