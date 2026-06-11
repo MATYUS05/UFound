@@ -1,50 +1,32 @@
-# Welcome to your Expo app 👋
+# UFound 🔍
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**UFound** adalah aplikasi manajemen *Lost and Found* digital berbasis *mobile-first* yang dirancang untuk memodernisasi pelacakan dan pelaporan barang hilang di lingkungan kampus Universitas Multimedia Nusantara (UMN). Aplikasi ini mengunggulkan inovasi keamanan **Blind-Claim System** yang mewajibkan pengguna untuk memverifikasi kepemilikan melalui tebakan detail rahasia, serta dilengkapi dengan pemindai QR untuk serah terima fisik yang aman.
 
-## Get started
+Proyek ini dikembangkan sebagai pemenuhan Tugas Karya Akhir Semester untuk mata kuliah **IF670 Cross-Platform Mobile Programming**.
 
-1. Install dependencies
+## 👥 Informasi Kelompok (Group 4)
 
-   ```bash
-   npm install
-   ```
+Aplikasi ini dirancang dan dikembangkan secara kolaboratif oleh:
 
-2. Start the app
+| Nama Lengkap | NIM |
+| :--- | :--- |
+| **Matthew Yuslih** | 00000098302 |
+| **Pierre Rambe** | 00000096804 |
+| **John Hubert Chen** | 00000094925 |
+| **Winson Sovian** | 00000091576 |
+| **Edbert Rendrahadi Liong** | 00000094269 |
 
-   ```bash
-   npx expo start
-   ```
+## 🔗 Tautan Penting (Project Links)
 
-In the output, you'll find options to open the app in a
+* **Repositori GitHub:** [https://github.com/MATYUS05/UFound](https://github.com/MATYUS05/UFound)
+* **Aplikasi Google Play Store:** TBA
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🛠️ Teknologi yang Digunakan (Tech Stack)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+* **Kerangka Kerja UI:** React Native (Expo)
+* **Basis Data & Autentikasi:** Firebase (Firestore & Firebase Auth)
+* **Layanan Pemetaan:** OSMMAP
+* **Penyimpanan Media:** Cloudinary
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+*Fakultas Teknik dan Informatika - Program Studi Informatika* *Universitas Multimedia Nusantara © 2026*
